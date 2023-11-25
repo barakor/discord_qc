@@ -20,18 +20,26 @@
                              (#(/ % 2)))
         top-player (first (last (sort-by val players_elos)))
 
-        distance-from-ideal (fn [team-elos] (abs (- ideal-team-elo-sum (reduce + (vals team-elos)))))
+        team-elo #(reduce + (vals %))
+        distance-from-ideal #(abs (- ideal-team-elo-sum (:team-elo-sum %)))
+        diviation-from-ideal #(/ (:distance-from-ideal %) ideal-team-elo-sum)
+
         team1-combs (->> (combinations players_elos 4)
                       (map #(into {} %))
                       (s/select [s/ALL #(get % top-player)])
-                      (map #(assoc % :team-elo-sum (reduce + (vals %))))
-                      (map #(assoc % :distance-from-ideal (abs (- ideal-team-elo-sum (:team-elo-sum %)))))
-                      (map #(assoc % :diviation-from-ideal (/ (:distance-from-ideal %) ideal-team-elo-sum)))
+                      (map #(assoc % :team-elo-sum (team-elo %)))
+                      (map #(assoc % :distance-from-ideal (distance-from-ideal %)))
+                      (map #(assoc % :diviation-from-ideal (diviation-from-ideal %)))
                       (sort-by :distance-from-ideal)
                       (take 3))]
     team1-combs))
 
-(pprint (random-sample mock-players-elo))
+
+(defn shuffle-list [players_elos]
+  (let [team1 (into {} (random-sample 0.5 players_elos))]
+    team1))
+
+(shuffle-list mock-players-elo)
 (weighted-allocation mock-players-elo)
 (s/select [s/ALL #(get % "bamb1")] (weighted-allocation mock-players-elo))
 
