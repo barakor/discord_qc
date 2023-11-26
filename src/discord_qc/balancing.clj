@@ -12,62 +12,80 @@
                        "xtortion" 6.7005982
                        "rapha" 0.44074476})
 
+(defn complementary-team [all-players team1]
+  (let [team1-players (keys team1)
+        team2 (apply dissoc all-players (keys team1))]
+    team2))
+
+
+(defn ideal-team-elo [players_elos]
+  (->> players_elos
+    (vals)
+    (reduce +)
+    (#(/ % 2))))
+
+
+(defn highest-elo-player [players_elos]
+  (first (last (sort-by val players_elos))))
+
+
+(defn team-elo [team]
+  (reduce + (vals team)))
+
+
+(defn distance-from-ideal-team-elo [ideal-team-elo-sum team]
+  (abs (- ideal-team-elo-sum (team-elo team))))
+
+
+(defn diviation-from-ideal-team-elo [ideal-team-elo-sum team]
+  (/ (distance-from-ideal-team-elo ideal-team-elo-sum team) ideal-team-elo-sum))
+
+
+(defn teams [players_elos team1]
+  (let [ideal-team-elo-sum (ideal-team-elo players_elos)
+        distance-from-ideal-team-elo (partial distance-from-ideal-team-elo ideal-team-elo-sum)
+        diviation-from-ideal-team-elo (partial diviation-from-ideal-team-elo ideal-team-elo-sum)
+        enrich-teams (fn [team1]
+                       (let [team2 (complementary-team players_elos team1)]
+                         {:team1 team1
+                          :team1-elo-sum (team-elo team1)
+                          :team2 team2
+                          :team2-elo-sum (team-elo team2)
+                          :distance-from-ideal (distance-from-ideal-team-elo team1)
+                          :diviation-from-ideal (diviation-from-ideal-team-elo team1)}))]
+    (enrich-teams team1)))
+
 
 (defn weighted-allocation [players_elos]
-  (let [ideal-team-elo-sum (->> players_elos
-                             (vals)
-                             (reduce +)
-                             (#(/ % 2)))
-        top-player (first (last (sort-by val players_elos)))
-
-        team-elo #(reduce + (vals %))
-        distance-from-ideal #(abs (- ideal-team-elo-sum (:team-elo-sum %)))
-        diviation-from-ideal #(/ (:distance-from-ideal %) ideal-team-elo-sum)
-
-        team1-combs (->> (combinations players_elos 4)
-                      (map #(into {} %))
-                      (s/select [s/ALL #(get % top-player)])
-                      (map #(assoc % :team-elo-sum (team-elo %)))
-                      (map #(assoc % :distance-from-ideal (distance-from-ideal %)))
-                      (map #(assoc % :diviation-from-ideal (diviation-from-ideal %)))
-                      (sort-by :distance-from-ideal)
-                      (take 3))]
-    team1-combs))
-
+  (->> (combinations players_elos 4)
+    (map #(into {} %))
+    (s/select [s/ALL #(get % (highest-elo-player players_elos))])
+    (sort-by #(diviation-from-ideal-team-elo (ideal-team-elo players_elos) %))
+    ; (take 3)
+    (map #(teams players_elos %))))
+   
 
 (defn shuffle-list [players_elos]
-  (let [team1 (into {} (random-sample 0.5 players_elos))]
-    team1))
+  (->> players_elos
+    (random-sample 0.5)
+    (into {})
+    (teams players_elos)))
+
+
+(defn draft-allocation [players_elos]
+  (->> players_elos
+    (sort-by val)
+    (partition 2)
+    (map second)
+    (into {})
+    (teams players_elos)))
+
+
+(draft-allocation mock-players-elo)
+
+
+
 
 (shuffle-list mock-players-elo)
 (weighted-allocation mock-players-elo)
 (s/select [s/ALL #(get % "bamb1")] (weighted-allocation mock-players-elo))
-
-; async def shuffle_list(players_elo):
-;     l = list(players_elo.items())
-;     for i in range(len(l) * 2):
-;         r = randint(0, len(l) - 1)
-;         l.append(l.pop(r))
-;     return [(dict(l[0::2]), dict(l[1::2]))]
-
-; async def pick_from_top(players_elo):
-;     soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
-;     team1_elos = dict(soreted_by_elo[0::2])
-;     team2_elos = dict(soreted_by_elo[1::2])
-;     return [(team1_elos, team2_elos)]
-
-; async def weighted_player_allocation(players_elo):
-;     soreted_by_elo = sorted(players_elo.items(), key=lambda x:x[1], reverse=True)
-;     elo_sum = sum(players_elo.values())
-;     team1_options = sorted([(comb, abs(elo_sum/2-sum((player[1] for player in comb)))) 
-;                              for comb in combinations(soreted_by_elo, len(players_elo)//2) 
-;                              if soreted_by_elo[0] in comb],
-;                            key=lambda x:x[1])
-;     top3_teams = team1_options[:3]
-;     teams = []
-;     for team1_option in top3_teams:
-;         team1_elo = {p[0]:players_elo[p[0]] for p in team1_option[0]}
-;         team2_elo = {p:v for p,v in players_elo.items() if p not in team1_elo}
-        
-;         teams.append((team1_elo,team2_elo))
-;     return teams
