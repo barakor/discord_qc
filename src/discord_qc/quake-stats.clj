@@ -1,15 +1,18 @@
-(ns discord-qc.elos
-  (:require [clojure.edn :as edn]
+(ns discord-qc.quake-stats
+  (:require 
             [clojure.set :refer [rename-keys]]
-            [clojure.data.json :as json]
+
             [org.httpkit.client :as http]
             [cheshire.core :refer [parse-string]]
             [camel-snake-kebab.core :as csk]
-            [clojure.pprint :refer [pprint]]
-            [com.rpl.specter :as s]))
+
+            [com.rpl.specter :as s]
+
+            [clojure.pprint :refer [pprint]]))
+            
 
 
-(defn http-get [path]
+(defn- http-get [path]
   (let [response @(http/get path)
         body (:body response)
         res (parse-string body csk/->kebab-case-keyword)]
@@ -18,12 +21,12 @@
       res)))
 
 
-(defn pull-stats [quake-name]
+(defn- pull-stats [quake-name]
   (let [url (str "https://quake-stats.bethesda.net/api/v2/Player/Stats?name=" quake-name)]
     (http-get url)))
 
 
-(defn calc-elos [stats]
+(defn- calc-elos [stats]
   (let [objective-modes [:game-mode-obelisk :game-mode-obelisk-pro :game-mode-ctf]
         killing-modes [:game-mode-slipgate :game-mode-team-deathmatch :game-mode-team-deathmatch-2vs-2
                        :game-mode-ffa :game-mode-instagib :game-mode-duel :game-mode-duel-pro]
@@ -83,8 +86,7 @@
        (rename-keys modes-renames))))
 
 
-(defn get-quake-elo [quake-name]
+(defn quake-name->elo-map [quake-name]
   (when-let [stats (pull-stats quake-name)]
     (assoc (calc-elos stats) :quake-name quake-name)))
-      
 
