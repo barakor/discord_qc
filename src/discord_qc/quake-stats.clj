@@ -8,6 +8,8 @@
 
             [com.rpl.specter :as s]
 
+            [discord-qc.handle-db :as db]
+
             [clojure.pprint :refer [pprint]]))
             
 
@@ -88,5 +90,7 @@
 
 (defn quake-name->elo-map [quake-name]
   (when-let [stats (pull-stats quake-name)]
-    (assoc (calc-elos stats) :quake-name quake-name)))
+    (let [elo-map (assoc (calc-elos stats) :quake-name quake-name)]
+      (db/save-quake-name->elo-map quake-name elo-map)
+      elo-map)))
 

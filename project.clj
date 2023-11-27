@@ -12,6 +12,10 @@
                  [http-kit "2.8.0-beta3"]
                  [org.clojure/math.combinatorics "0.2.0"]
                  [com.datomic/local "1.0.267"]
-                 [philoskim/debux "0.9.0"]]
+                 [philoskim/debux "0.9.0"]
+
+                 [org.clj-commons/byte-streams "0.3.4"]
+                 [org.rocksdb/rocksdbjni "8.6.7"]]
+                 
   :repl-options {:init-ns discord-qc.core}
   :main discord-qc.core)
