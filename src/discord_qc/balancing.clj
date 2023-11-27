@@ -3,14 +3,14 @@
             [com.rpl.specter :as s]
             [clojure.pprint :refer [pprint]]))
 
-(def mock-players-elo {"iikxii" 5.9680834
-                       "cashedcheck" 3.723866
-                       "cubertt" 8.2246895
-                       "bargleloco" 13.569449
-                       "bamb1" 7.8625717
-                       "lezyes" 4.702424
-                       "xtortion" 6.7005982
-                       "rapha" 0.44074476})
+; (def mock-players-elo {"iikxii" 5.9680834
+;                        "cashedcheck" 3.723866
+;                        "cubertt" 8.2246895
+;                        "bargleloco" 13.569449
+;                        "bamb1" 7.8625717
+;                        "lezyes" 4.702424
+;                        "xtortion" 6.7005982
+;                        "rapha" 0.44074476})
 
 (defn complementary-team [all-players team1]
   (let [team1-players (keys team1)
@@ -80,12 +80,3 @@
     (into {})
     (teams players_elos)))
 
-
-(draft-allocation mock-players-elo)
-
-
-
-
-(shuffle-list mock-players-elo)
-(weighted-allocation mock-players-elo)
-(s/select [s/ALL #(get % "bamb1")] (weighted-allocation mock-players-elo))

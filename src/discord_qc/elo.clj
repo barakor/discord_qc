@@ -16,6 +16,8 @@
                  :instagib "instagib" 
                  :duel "Duel"})
 
+; (clojure.set/map-invert mode-names)
+
 
 (defn quake-name->elo-map [quake-name]
   (if-let [elo-map (db/quake-name->elo-map quake-name)]
