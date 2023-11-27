@@ -11,6 +11,7 @@
                  [com.rpl/specter "1.1.4"]
                  [http-kit "2.8.0-beta3"]
                  [org.clojure/math.combinatorics "0.2.0"]
+                 [com.datomic/local "1.0.267"]
                  [philoskim/debux "0.9.0"]]
   :repl-options {:init-ns discord-qc.core}
   :main discord-qc.core)

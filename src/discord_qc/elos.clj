@@ -27,10 +27,16 @@
   (let [objective-modes [:game-mode-obelisk :game-mode-obelisk-pro :game-mode-ctf]
         killing-modes [:game-mode-slipgate :game-mode-team-deathmatch :game-mode-team-deathmatch-2vs-2
                        :game-mode-ffa :game-mode-instagib :game-mode-duel :game-mode-duel-pro]
-        modes-renames {:game-mode-obelisk :sacrifice :game-mode-obelisk-pro :sacrifice-tournament 
-                       :game-mode-ctf :ctf :game-mode-slipgate :slipgate :game-mode-team-deathmatch :tdm 
-                       :game-mode-team-deathmatch-2vs-2 :tdm-2v2 :game-mode-ffa :ffa 
-                       :game-mode-instagib :instagib :game-mode-duel :duel :game-mode-duel-pro :ranked-duel}
+        modes-renames {:game-mode-obelisk :sacrifice 
+                       :game-mode-obelisk-pro :sacrifice-tournament 
+                       :game-mode-ctf :ctf
+                       :game-mode-slipgate :slipgate
+                       :game-mode-team-deathmatch :tdm 
+                       :game-mode-team-deathmatch-2vs-2 :tdm-2v2 
+                       :game-mode-ffa :ffa 
+                       :game-mode-instagib :instagib 
+                       :game-mode-duel :duel 
+                       :game-mode-duel-pro :ranked-duel}
         game-modes-key-path [:player-profile-stats :champions s/MAP-VALS :game-modes]
         modes-list          (->> stats
                               (s/select [game-modes-key-path s/MAP-KEYS])
@@ -79,5 +85,6 @@
 
 (defn get-quake-elo [quake-name]
   (when-let [stats (pull-stats quake-name)]
-    (calc-elos stats)))
+    (assoc (calc-elos stats) :quake-name quake-name)))
+      
 
