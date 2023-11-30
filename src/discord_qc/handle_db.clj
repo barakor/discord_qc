@@ -15,6 +15,7 @@
 
 (defn save-quake-name->elo-map [quake-name elo-map]
   (rocksdb/put-record! (str "quake-name->elo-map/" quake-name) elo-map)
-  (swap! all-quake-names-in-db set/union #{quake-name})
-  (rocksdb/put-record! "all-quake-names-in-db" @all-quake-names-in-db))
+  (when (not (contains? @all-quake-names-in-db quake-name))
+    (swap! all-quake-names-in-db set/union #{quake-name})
+    (rocksdb/put-record! "all-quake-names-in-db" @all-quake-names-in-db)))
 

@@ -23,7 +23,7 @@
       res)))
 
 
-(defn- pull-stats [quake-name]
+(defn pull-stats [quake-name]
   (let [url (str "https://quake-stats.bethesda.net/api/v2/Player/Stats?name=" quake-name)]
     (http-get url)))
 
@@ -93,4 +93,3 @@
     (let [elo-map (assoc (calc-elos stats) :quake-name quake-name)]
       (db/save-quake-name->elo-map quake-name elo-map)
       elo-map)))
-
