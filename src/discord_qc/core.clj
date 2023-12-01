@@ -46,8 +46,12 @@
 (defn -main [& args]
   (reset! state* (start-bot! (:token config) :intents (:intents config)))
   (reset! bot-id (:id @(discord-rest/get-current-user! (:rest @state*))))
-  (discord-rest/bulk-overwrite-guild-application-commands! (:rest @state*) @bot-id guild-id application-commands)
+  (try 
+    @(discord-rest/bulk-overwrite-guild-application-commands! (:rest @state*) @bot-id guild-id application-commands)
+    (println "updated guild commands")
+    (catch Exception e (println e)))
   (try
     (message-pump! (:events @state*) handle-event)
     (finally (stop-bot! @state*))))
 
+(-main)

@@ -14,8 +14,9 @@
                  :tdm-2v2 "TDM 2v2"
                  :ffa "Deathmatch" 
                  :instagib "instagib" 
-                 :duel "Duel"})
-
+                 :duel "Duel"
+                 :killing "Killing"
+                 :objective "Objective"})
 ; (clojure.set/map-invert mode-names)
 
 

@@ -1,37 +1,37 @@
 (ns discord-qc.interactions
-  (:require
-    [slash.command.structure :as scs]
-    [slash.core :as sc]
-    [slash.command :as scmd]
-    [slash.response :as srsp]
-    [slash.gateway :as sg]
-    [slash.component.structure :as scomp]
+  (:require [clojure.string :refer [lower-case]]
+            [slash.command.structure :as scs]
+            [slash.core :as sc]
+            [slash.command :as scmd]
+            [slash.response :as srsp]
+            [slash.gateway :as sg]
+            [slash.component.structure :as scomp]
 
-    [com.rpl.specter :as s]
-    
-    [discord-qc.quake-stats :as quake-stats]
-    [discord-qc.handle-db :as db]))
-   
+            [com.rpl.specter :as s]
+            
+            [discord-qc.quake-stats :as quake-stats]
+            [discord-qc.handle-db :as db]))
 
-(scmd/defhandler query-handler
-  ["query"]
-  interaction
-  []
-  (let [
-        quake-name (s/select-first [:data :options s/FIRST :value] interaction)]    
+
+(defn map-interaction-options [interaction]
+  (into {} (map #(hash-map (:name %) (:value %)) (get-in interaction [:data :options]))))  
+
+
+(defmulti handle-command-interaction 
+  (fn [interaction] (get-in interaction [:data :name])))
+
+
+(defmethod handle-command-interaction "query" [interaction]
+  (let [quake-name (lower-case (get (map-interaction-options interaction) "quake-name"))]
+
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
       (do 
           (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
  
 
-(scmd/defhandler register-handler
-  ["register"]
-  interaction
-  []
-  ; (println interaction)
-  (let [
-        quake-name (s/select-first [:data :options s/FIRST :value] interaction)
+(defmethod handle-command-interaction "register" [interaction]
+  (let [quake-name (lower-case (get (map-interaction-options interaction) "quake-name"))
         user-id (s/select-first [:member :user :id] interaction)]
     
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
@@ -40,11 +40,29 @@
           (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
 
-(scmd/defpaths command-paths #'register-handler #'query-handler)
+
+
+(defmethod handle-command-interaction "balance" [interaction]
+  (let [interaction-options (map-interaction-options interaction)
+        game-mode (get interaction-options "game-mode")
+        quake-names (-> interaction-options
+                      (dissoc "game-mode")
+                      (vals)
+                      (map lower-case))]
+  ;       user-id (s/select-first [:member :user :id] interaction)]
+    (println game-mode quake-names)
+    ; (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
+    ;   (do 
+    ;       (db/save-discord-id->quake-name user-id quake-name)
+    ;       (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
+    (srsp/update-message {:content (pr-str interaction)})))
+
+
+
 
 ;; Component interactions
 (defmulti handle-component-interaction
-  (fn [interaction] (-> interaction :data :custom-id)))
+  (fn [interaction] (get-in interaction [:data :custom-id])))
 
 (def num-signups (atom 0))
 (defmethod handle-component-interaction "sign-up"
@@ -55,7 +73,7 @@
 ;; Routing
 (def interaction-handlers
   (assoc sg/gateway-defaults
-         :application-command command-paths
+         :application-command #'handle-command-interaction
          :message-component #'handle-component-interaction))
 
 
