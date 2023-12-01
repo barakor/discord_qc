@@ -4,4 +4,18 @@
 
  :playing "Balancing Scales"
  :responses ["Hello there" "Good evening" "Good morning" "G'day" "Hi" "Howdy :cowboy:"]
- :intents #{:guild-presences :guild-members :guild-messages}}
+ :intents #{:guilds 
+            :guild-members 
+            :guild-presences 
+            :guild-messages 
+            :guild-voice-states 
+            :guild-scheduled-events
+            :guild-emojis
+            :direct-messages}}
+
+
+
+   
+   
+   
+    
