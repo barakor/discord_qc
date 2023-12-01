@@ -13,24 +13,34 @@
     [discord-qc.handle-db :as db]))
    
 
-
+(scmd/defhandler query-handler
+  ["query"]
+  interaction
+  []
+  (let [
+        quake-name (s/select-first [:data :options s/FIRST :value] interaction)]    
+    (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
+      (do 
+          (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
+      (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
  
 
 (scmd/defhandler register-handler
   ["register"]
   interaction
   []
-  (println interaction)
+  ; (println interaction)
   (let [
         quake-name (s/select-first [:data :options s/FIRST :value] interaction)
         user-id (s/select-first [:member :user :id] interaction)]
     
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
-      (do (db/save-discord-id->quake-name user-id quake-name)
-          (srsp/channel-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
-      (srsp/channel-message {:content (str "couldn't find quake name " quake-name)}))))
+      (do 
+          (db/save-discord-id->quake-name user-id quake-name)
+          (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
+      (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
 
-(scmd/defpaths command-paths #'register-handler)
+(scmd/defpaths command-paths #'register-handler #'query-handler)
 
 ;; Component interactions
 (defmulti handle-component-interaction

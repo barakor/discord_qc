@@ -9,6 +9,12 @@
     ; [slash.gateway :as sg]
     ; [slash.component.structure :as scomp]))
     
+(def query-command
+  (scs/command
+   "query"
+   "Query Quake player's stats"
+   :options
+   [(scs/option "quake-name" "Quake Name" :string :required true)]))
 
 
 (def register-command
@@ -16,7 +22,7 @@
    "register"
    "Register Quake name"
    :options
-   [(scs/option "quake name" "Your Quake Name" :string :required true)]))
+   [(scs/option "quake-name" "Your Quake Name" :string :required true)]))
 
 
-(def application-commands [register-command])
+(def application-commands [register-command query-command])

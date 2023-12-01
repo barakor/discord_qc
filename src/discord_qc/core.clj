@@ -51,6 +51,3 @@
     (message-pump! (:events @state*) handle-event)
     (finally (stop-bot! @state*))))
 
-
-
-(-main)

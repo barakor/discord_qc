@@ -3,6 +3,7 @@
     [discljord.connections :as discord-ws]
     [discljord.messaging :as discord-rest]
     [slash.core :as sc]
+    [slash.response :as srsp]
 
     [discord-qc.state :refer [state* config]]
     [discord-qc.interactions :refer [interaction-handlers]]))
@@ -27,7 +28,8 @@
 
 (defmethod handle-event :interaction-create
   [_ event-data]
+  (discord-rest/create-interaction-response! (:rest @state*) (:id event-data) (:token event-data) (:type srsp/deferred-channel-message)) 
   (let [{:keys [type data] :as a} (sc/route-interaction interaction-handlers event-data)]
-    (discord-rest/create-interaction-response! (:rest @state*) (:id event-data) (:token event-data) type :data data)))
+    (discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id event-data) (:token event-data) :content (:content data))))
 
 
