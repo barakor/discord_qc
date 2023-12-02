@@ -6,17 +6,17 @@
             [clojure.pprint :refer [pprint]]))
             
 
-(def mode-names {:sacrifice "Sacrifice" 
-                 :sacrifice-tournament "Sacrifice Tournament" 
-                 :ctf "CTF"
-                 :slipgate "Slipgate"
-                 :tdm "TDM" 
-                 :tdm-2v2 "TDM 2v2"
-                 :ffa "Deathmatch" 
+(def mode-names {:sacrifice "sacrifice" 
+                 :sacrifice-tournament "sacrifice-tournament" 
+                 :ctf "ctf"
+                 :slipgate "slipgate"
+                 :tdm "tdm" 
+                 :tdm-2v2 "tdm-2v2"
+                 :ffa "ffa" 
                  :instagib "instagib" 
-                 :duel "Duel"
-                 :killing "Killing"
-                 :objective "Objective"})
+                 :duel "duel"
+                 :killing "killing"
+                 :objective "objective"})
 ; (clojure.set/map-invert mode-names)
 
 

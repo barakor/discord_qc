@@ -57,19 +57,23 @@
 
 
 (defn weighted-allocation [players_elos]
-  (->> (combinations players_elos 4)
-    (map #(into {} %))
-    (s/select [s/ALL #(get % (highest-elo-player players_elos))])
-    (sort-by #(diviation-from-ideal-team-elo (ideal-team-elo players_elos) %))
-    ; (take 3)
-    (map #(teams players_elos %))))
+  (let [team-size (int (/ (count players_elos) 2))]
+    (->> (combinations players_elos team-size)
+      (map #(into {} %))
+      (s/select [s/ALL #(get % (highest-elo-player players_elos))])
+      (sort-by #(diviation-from-ideal-team-elo (ideal-team-elo players_elos) %))
+      ; (take 3)
+      (map #(teams players_elos %)))))
    
 
 (defn shuffle-list [players_elos]
-  (->> players_elos
-    (random-sample 0.5)
-    (into {})
-    (teams players_elos)))
+  (let [team-size (int (/ (count players_elos) 2))
+        players (->> players_elos
+                   (keys)
+                   (shuffle)
+                   (take team-size))]
+    
+    (teams  players_elos (select-keys players_elos players))))
 
 
 (defn draft-allocation [players_elos]
