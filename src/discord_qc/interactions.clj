@@ -16,7 +16,7 @@
             [discord-qc.handle-db :as db]))
 
 
-(defn map-interaction-options [interaction]
+(defn map-command-interaction-options [interaction]
   (into {} (map #(hash-map (:name %) (:value %)) (get-in interaction [:data :options]))))  
 
 
@@ -25,7 +25,7 @@
 
 
 (defmethod handle-command-interaction "query" [interaction]
-  (let [quake-name (lower-case (get (map-interaction-options interaction) "quake-name"))]
+  (let [quake-name (lower-case (get (map-command-interaction-options interaction) "quake-name"))]
 
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
       (do 
@@ -34,7 +34,7 @@
  
 
 (defmethod handle-command-interaction "register" [interaction]
-  (let [quake-name (lower-case (get (map-interaction-options interaction) "quake-name"))
+  (let [quake-name (lower-case (get (map-command-interaction-options interaction) "quake-name"))
         user-id (s/select-first [:member :user :id] interaction)]
     
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
@@ -70,7 +70,7 @@
     (apply merge)))
 
 (defmethod handle-command-interaction "balance" [interaction]
-  (let [interaction-options (map-interaction-options interaction)
+  (let [interaction-options (map-command-interaction-options interaction)
         game-mode (get interaction-options "game-mode")
         quake-names (-> interaction-options
                       (dissoc "game-mode")
@@ -83,39 +83,60 @@
         
         found-players (->> voice-channel-members 
                         (find-registered-users)
-                        (find-unregistered-users))]
-
+                        (find-unregistered-users))
+        component-id (atom 0)
+        components [(scomp/action-row 
+                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "1")
+                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "2")
+                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "3")
+                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "4")
+                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "5"))]]
+                      ; (scomp/button :secondary (str "toggle-primary-secondary" (swap! component-id inc)) :label "6"))]]
+                    ; (scomp/action-row
+                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "7")
+                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "8")
+                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "9")
+                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "10")
+                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "11")
+                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "12"))]]
     ; create components for each player (toggle buttons), add players (button, if you forgot someone, should open a modal I think?)
     ; logic to figure who're the players and call the balance func on their name->elo map
     ; parse messages with https://autocode.com/tools/discord/embed-builder/
         ; automatically-polled]
-    (println found-players)
+    (println "found-players: " found-players)
 
-    (srsp/update-message {:content (str (pr-str found-players))})))
+    (srsp/update-message {:content (str (pr-str found-players)) :components components})))
 
-(db/save-discord-id->quake-name "88533822521507840" nil)
+; (db/save-discord-id->quake-name "88533822521507840" nil)
 
-(db/discord-id->quake-name "88533822521507840")
+; (db/discord-id->quake-name "88533822521507840")
 
-(let [  user-id "88533822521507840"
-        voice-channel-id (user-in-voice-channel? user-id)
-        voice-channel-members (get-voice-channel-members voice-channel-id)
+; (let [  user-id "88533822521507840"
+;         voice-channel-id (user-in-voice-channel? user-id)
+;         voice-channel-members (get-voice-channel-members voice-channel-id)
         
-        found-players (->> voice-channel-members 
-                        (find-registered-users)
-                        (find-unregistered-users))]
-  (println found-players))
-
+;         found-players (->> voice-channel-members 
+;                         (find-registered-users)
+;                         (find-unregistered-users))]
+;   (println found-players))
 
 
 ;; Component interactions
 (defmulti handle-component-interaction
-  (fn [interaction] (get-in interaction [:data :custom-id])))
+  ; To make componenet ids unique, they are namespaced, so "name.of.function/1" and "name.of.function/2" point to the same function
+  (fn [interaction] 
+    (println "comp-inter" (pr-str interaction))
+    (-> interaction
+      (get-in [:data :custom-id])
+      (clojure.string/split #"/")
+      (first))))
 
 (def num-signups (atom 0))
-(defmethod handle-component-interaction "sign-up"
+(defmethod handle-component-interaction "toggle-primary-secondary"
   [interaction]
-  (swap! num-signups inc)
+  (let [old-content (get-in interaction [:message :content])
+        old-components (get-in interaction [:message :content])])
+  (println interaction)
   (srsp/update-message {:content (str "i have updated this message " @num-signups " times")}))
 
 ;; Routing

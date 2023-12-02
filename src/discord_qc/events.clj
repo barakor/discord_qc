@@ -30,9 +30,9 @@
 
 (defmethod handle-event :interaction-create
   [_ event-data]
-  (discord-rest/create-interaction-response! (:rest @state*) (:id event-data) (:token event-data) (:type srsp/deferred-channel-message)) 
+  (println "[handle-event.interaction-create] acking: " @(discord-rest/create-interaction-response! (:rest @state*) (:id event-data) (:token event-data) (:type srsp/deferred-channel-message))) 
   (let [{:keys [type data] :as a} (sc/route-interaction interaction-handlers event-data)]
-    (discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id event-data) (:token event-data) :content (:content data))))
+    (println "[handle-event.interaction-create] responding: " @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id event-data) (:token event-data) data))))
 
 
 (defn voice-state-channel-update [_ {:keys [user-id guild-id channel-id] :as voice} state*]
