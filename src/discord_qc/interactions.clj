@@ -1,5 +1,6 @@
 (ns discord-qc.interactions
-  (:require [clojure.string :refer [lower-case]]
+  (:require [clojure.string :as string :refer [lower-case]]
+            [clojure.set :as set]
 
             [discljord.messaging :as discord-rest]
             [discljord.connections :as discord-ws]
@@ -69,6 +70,23 @@
             %))
     (apply merge)))
 
+
+(scomp/action-row
+   (scomp/button :secondary "toggle-primary-secondary" :label "7")
+   (scomp/button :secondary "toggle-primary-secondary" :label "8")
+   (scomp/button :secondary "toggle-primary-secondary" :label "9")
+   (scomp/button :secondary "toggle-primary-secondary" :label "10"))
+
+
+(defn build-components-action-rows [components]
+  (->> components
+    (partition-all 5)
+    (map #(apply scomp/action-row %))
+    (into [])))
+
+  ; (println (partition 5 [0 1 2 3 4 5 6 7 8 9])))
+
+
 (defmethod handle-command-interaction "balance" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
         game-mode (get interaction-options "game-mode")
@@ -85,13 +103,13 @@
                         (find-registered-users)
                         (find-unregistered-users))
         component-id (atom 0)
-        components [(scomp/action-row 
-                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "1")
-                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "2")
-                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "3")
-                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "4")
-                      (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "5"))]]
-                      ; (scomp/button :secondary (str "toggle-primary-secondary" (swap! component-id inc)) :label "6"))]]
+        components (build-components-action-rows
+                      [(scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "1")
+                       (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "2")
+                       (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "3")
+                       (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "4")
+                       (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "5")])]
+                       ; (scomp/button :secondary (str "toggle-primary-secondary" (swap! component-id inc)) :label "6"))]]
                     ; (scomp/action-row
                     ;   (scomp/button :secondary "toggle-primary-secondary" :label "7")
                     ;   (scomp/button :secondary "toggle-primary-secondary" :label "8")
@@ -103,8 +121,8 @@
     ; logic to figure who're the players and call the balance func on their name->elo map
     ; parse messages with https://autocode.com/tools/discord/embed-builder/
         ; automatically-polled]
-    (println "found-players: " found-players)
-
+    (println "sending components: " (pr-str components))
+    (println "type: " (type (:components (first components))))
     (srsp/update-message {:content (str (pr-str found-players)) :components components})))
 
 ; (db/save-discord-id->quake-name "88533822521507840" nil)
@@ -125,19 +143,58 @@
 (defmulti handle-component-interaction
   ; To make componenet ids unique, they are namespaced, so "name.of.function/1" and "name.of.function/2" point to the same function
   (fn [interaction] 
-    (println "comp-inter" (pr-str interaction))
     (-> interaction
       (get-in [:data :custom-id])
-      (clojure.string/split #"/")
+      (string/split #"/")
       (first))))
 
+
+(def ci (atom nil))
 (def num-signups (atom 0))
 (defmethod handle-component-interaction "toggle-primary-secondary"
   [interaction]
-  (let [old-content (get-in interaction [:message :content])
-        old-components (get-in interaction [:message :content])])
-  (println interaction)
-  (srsp/update-message {:content (str "i have updated this message " @num-signups " times")}))
+  (reset! ci interaction)
+  (let [primary-secondary-switch (fn [style] (case style 
+                                               :secondary :primary 
+                                               :primary :secondary))
+
+        old-content (get-in interaction [:message :content])
+        
+        old-components (->> interaction
+                         (s/select [:message :components s/ALL :components s/ALL])
+                         (map #(update % :style (set/map-invert scomp/button-styles))))
+        
+        toggle-componenet-id (s/select-first [:data :custom-id] interaction)
+
+        components (->> old-components
+                           (s/transform [(s/filterer #(= (:custom-id %) toggle-componenet-id)) s/ALL] 
+                              #(update % :style primary-secondary-switch)) 
+                           (map #(scomp/button (:style %) (:custom-id %) :label (:label %)))
+                           (build-components-action-rows))]
+        
+    (println "components: " (pr-str components))
+    (srsp/update-message {:content (str "i have updated this message " @num-signups " times") :components components})))
+
+
+
+(s/select-first [:data :custom-id] @ci)
+(let [old-components (s/select [:message :components s/ALL :components s/ALL] @ci)
+      components (map #(update % :style (set/map-invert scomp/button-styles)) old-components)
+      
+      toggle-componenet-id (s/select-first [:data :custom-id] @ci)
+
+      primary-secondary-switch (fn [style] (case style 
+                                             :secondary :primary 
+                                             :primary :secondary))
+      components-to-add (->> components
+                           (s/transform [(s/filterer #(= (:custom-id %) toggle-componenet-id)) s/ALL] 
+                              #(update % :style primary-secondary-switch)) 
+                           (map #(scomp/button (:style %) (:custom-id %) :label (:label %)))
+                           (build-components-action-rows))]
+
+   components-to-add)   
+
+
 
 ;; Routing
 (def interaction-handlers
