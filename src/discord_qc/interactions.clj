@@ -52,6 +52,23 @@
   (get-in @discord-state* [:discljord.events.state/users user-id :voice :channel-id]))
 
 
+(defn find-registered-users [user-ids]
+  (->> user-ids
+    (map #(hash-map % (when-let [quake-name (db/discord-id->quake-name %)] 
+                        {:quake-name quake-name :registered true}))) 
+    (apply merge)))
+
+(defn get-user-display-name [user-id]
+  (when-let [display-name (get-in @discord-state* [:discljord.events.state/users user-id :display-name])]
+    (lower-case display-name)))
+
+(defn find-unregistered-users [users]
+  (->> users 
+    (map #(if (nil? (second %))
+            (hash-map (first %) {:quake-name (get-user-display-name (first %)) :registered false})
+            %))
+    (apply merge)))
+
 (defmethod handle-command-interaction "balance" [interaction]
   (let [interaction-options (map-interaction-options interaction)
         game-mode (get interaction-options "game-mode")
@@ -64,16 +81,29 @@
         voice-channel-id (user-in-voice-channel? user-id)
         voice-channel-members (get-voice-channel-members voice-channel-id)
         
-        known-players (remove nil? (map discord-id->quake-name voice-channel-members))]
-       
-        ; @(discord-rest/get-channel! (:rest @state*))]
-  ;       user-id (s/select-first [:member :user :id] interaction)]
-    (println known-players)
-    ; (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
-    ;   (do 
-    ;       (db/save-discord-id->quake-name user-id quake-name)
-    ;       (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
-    (srsp/update-message {:content (str (pr-str known-players))})))
+        found-players (->> voice-channel-members 
+                        (find-registered-users)
+                        (find-unregistered-users))]
+
+    
+        ; automatically-polled]
+    (println found-players)
+
+    (srsp/update-message {:content (str (pr-str found-players))})))
+
+(db/save-discord-id->quake-name "88533822521507840" nil)
+
+(db/discord-id->quake-name "88533822521507840")
+
+(let [  user-id "88533822521507840"
+        voice-channel-id (user-in-voice-channel? user-id)
+        voice-channel-members (get-voice-channel-members voice-channel-id)
+        
+        found-players (->> voice-channel-members 
+                        (find-registered-users)
+                        (find-unregistered-users))]
+  (println found-players))
+
 
 
 ;; Component interactions
