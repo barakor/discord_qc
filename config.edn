@@ -3,7 +3,6 @@
  :token "MTEwNDA2MzMwMzA2NTUzODU3MA.Gqw15B.bEKH3G-L9HGIndmyw3fsZzoY95uDaQTIrXAq4c"
 
  :playing "Balancing Scales"
- :responses ["Hello there" "Good evening" "Good morning" "G'day" "Hi" "Howdy :cowboy:"]
  :intents #{:guilds 
             :guild-members 
             :guild-presences 
