@@ -85,7 +85,9 @@
                         (find-registered-users)
                         (find-unregistered-users))]
 
-    
+    ; create components for each player (toggle buttons), add players (button, if you forgot someone, should open a modal I think?)
+    ; logic to figure who're the players and call the balance func on their name->elo map
+    ; parse messages with https://autocode.com/tools/discord/embed-builder/
         ; automatically-polled]
     (println found-players)
 
