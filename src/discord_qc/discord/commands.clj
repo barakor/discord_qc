@@ -1,15 +1,8 @@
-(ns discord-qc.commands
+(ns discord-qc.discord.commands
   (:require
     [slash.command.structure :as scs]
     
     [discord-qc.elo :refer [mode-names]]))
-   
-
-    ; [slash.core :as sc]
-    ; [slash.command :as scmd]
-    ; [slash.response :as srsp]
-    ; [slash.gateway :as sg]
-    ; [slash.component.structure :as scomp]))
     
 (def query-command
   (scs/command

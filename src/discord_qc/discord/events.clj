@@ -1,4 +1,4 @@
-(ns discord-qc.events
+(ns discord-qc.discord.events
   (:require
     [discljord.connections :as discord-ws]
     [discljord.messaging :as discord-rest]
@@ -7,7 +7,7 @@
     [discljord.events.state :as discord-state]
 
     [discord-qc.state :refer [state* config]]
-    [discord-qc.interactions :refer [interaction-handlers]]))
+    [discord-qc.discord.interactions :refer [interaction-handlers]]))
    
 
 (defmulti handle-event
@@ -42,6 +42,8 @@
   (voice-state-channel-update  _ voice state*)
   (discord-state/voice-state-update _ voice state*))
 
+
+;TODO : ADD A :guild-crete event wrapper to start the :voice-channels state
 
 (def caching-handlers (assoc discord-state/caching-handlers :voice-state-update [#'voice-state-update-wrapper]))
 

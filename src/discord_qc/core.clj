@@ -9,8 +9,8 @@
     [discljord.events.state :refer [caching-middleware caching-transducer voice-state-update]]
 
     [discord-qc.state :refer [state* discord-state* config]]
-    [discord-qc.events :refer [handle-event caching-handlers]]
-    [discord-qc.commands :refer [application-commands]]
+    [discord-qc.discord.events :refer [handle-event caching-handlers]]
+    [discord-qc.discord.commands :refer [application-commands]]
     [discord-qc.quake-stats :as quake-stats]
     [discord-qc.balancing :as balancing]
     [discord-qc.elo :as elo]))
@@ -57,5 +57,5 @@
     (message-pump! (:events @state*) handle-event)
     (finally (stop-bot! @state*))))
 
-; (-main)
+(-main)
 ; (reset! state* (start-bot! (:token config) :intents (:intents config)))
