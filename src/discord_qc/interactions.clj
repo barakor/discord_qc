@@ -1,14 +1,17 @@
 (ns discord-qc.interactions
   (:require [clojure.string :refer [lower-case]]
-            [slash.command.structure :as scs]
-            [slash.core :as sc]
-            [slash.command :as scmd]
+
+            [discljord.messaging :as discord-rest]
+            [discljord.connections :as discord-ws]
+
             [slash.response :as srsp]
             [slash.gateway :as sg]
             [slash.component.structure :as scomp]
 
             [com.rpl.specter :as s]
-            
+            [discljord.events.state :as discord-state]
+
+            [discord-qc.state :refer [state* discord-state*]]
             [discord-qc.quake-stats :as quake-stats]
             [discord-qc.handle-db :as db]))
 
@@ -41,6 +44,13 @@
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
 
 
+(defn get-voice-channel-members [channel-id]
+  (get-in @discord-state* [:voice-channels channel-id]))
+
+
+(defn user-in-voice-channel? [user-id]
+  (get-in @discord-state* [:discljord.events.state/users user-id :voice :channel-id]))
+
 
 (defmethod handle-command-interaction "balance" [interaction]
   (let [interaction-options (map-interaction-options interaction)
@@ -48,16 +58,22 @@
         quake-names (-> interaction-options
                       (dissoc "game-mode")
                       (vals)
-                      (map lower-case))]
+                      (map lower-case))
+        user-id (s/select-first [:member :user :id] interaction)
+
+        voice-channel-id (user-in-voice-channel? user-id)
+        voice-channel-members (get-voice-channel-members voice-channel-id)]
+        
+
+       
+        ; @(discord-rest/get-channel! (:rest @state*))]
   ;       user-id (s/select-first [:member :user :id] interaction)]
-    (println game-mode quake-names)
+    (println voice-channel-id voice-channel-members)
     ; (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
     ;   (do 
     ;       (db/save-discord-id->quake-name user-id quake-name)
     ;       (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
-    (srsp/update-message {:content (pr-str interaction)})))
-
-
+    (srsp/update-message {:content (str (pr-str voice-channel-id) (pr-str voice-channel-members))})))
 
 
 ;; Component interactions
