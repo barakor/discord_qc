@@ -59,9 +59,11 @@
                         {:quake-name quake-name :registered true}))) 
     (apply merge)))
 
+
 (defn get-user-display-name [user-id]
   (when-let [display-name (get-in @discord-state* [:discljord.events.state/users user-id :display-name])]
     (lower-case display-name)))
+
 
 (defn find-unregistered-users [users]
   (->> users 
@@ -69,13 +71,6 @@
             (hash-map (first %) {:quake-name (get-user-display-name (first %)) :registered false})
             %))
     (apply merge)))
-
-
-(scomp/action-row
-   (scomp/button :secondary "toggle-primary-secondary" :label "7")
-   (scomp/button :secondary "toggle-primary-secondary" :label "8")
-   (scomp/button :secondary "toggle-primary-secondary" :label "9")
-   (scomp/button :secondary "toggle-primary-secondary" :label "10"))
 
 
 (defn build-components-action-rows [components]
@@ -102,41 +97,22 @@
         found-players (->> voice-channel-members 
                         (find-registered-users)
                         (find-unregistered-users))
+
         component-id (atom 0)
+
         components (build-components-action-rows
-                      [(scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "1")
-                       (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "2")
-                       (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "3")
-                       (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "4")
-                       (scomp/button :secondary (str "toggle-primary-secondary/" (swap! component-id inc)) :label "5")])]
-                       ; (scomp/button :secondary (str "toggle-primary-secondary" (swap! component-id inc)) :label "6"))]]
-                    ; (scomp/action-row
-                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "7")
-                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "8")
-                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "9")
-                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "10")
-                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "11")
-                    ;   (scomp/button :secondary "toggle-primary-secondary" :label "12"))]]
+                      (map #(scomp/button :secondary 
+                                          (str "toggle-primary-secondary/" (str "toggle-primary-secondary/" (swap! component-id inc))) 
+                                          :label (:quake-name %)) 
+                        (vals found-players)))]
     ; create components for each player (toggle buttons), add players (button, if you forgot someone, should open a modal I think?)
     ; logic to figure who're the players and call the balance func on their name->elo map
     ; parse messages with https://autocode.com/tools/discord/embed-builder/
         ; automatically-polled]
-    (println "sending components: " (pr-str components))
-    (println "type: " (type (:components (first components))))
-    (srsp/update-message {:content (str (pr-str found-players)) :components components})))
-
-; (db/save-discord-id->quake-name "88533822521507840" nil)
-
-; (db/discord-id->quake-name "88533822521507840")
-
-; (let [  user-id "88533822521507840"
-;         voice-channel-id (user-in-voice-channel? user-id)
-;         voice-channel-members (get-voice-channel-members voice-channel-id)
-        
-;         found-players (->> voice-channel-members 
-;                         (find-registered-users)
-;                         (find-unregistered-users))]
-;   (println found-players))
+    ; (println "sending components: " (pr-str components))
+    ; (println "type: " (type (:components (first components))))
+    ; (println (pr-str interaction))
+    (srsp/channel-message {:content (str (pr-str found-players)) :components components})))
 
 
 ;; Component interactions
@@ -149,11 +125,8 @@
       (first))))
 
 
-(def ci (atom nil))
-(def num-signups (atom 0))
 (defmethod handle-component-interaction "toggle-primary-secondary"
   [interaction]
-  (reset! ci interaction)
   (let [primary-secondary-switch (fn [style] (case style 
                                                :secondary :primary 
                                                :primary :secondary))
@@ -171,38 +144,54 @@
                               #(update % :style primary-secondary-switch)) 
                            (map #(scomp/button (:style %) (:custom-id %) :label (:label %)))
                            (build-components-action-rows))]
-        
-    (println "components: " (pr-str components))
-    (srsp/update-message {:content (str "i have updated this message " @num-signups " times") :components components})))
+
+    (srsp/update-message {:content old-content :components components})))
 
 
 
-(s/select-first [:data :custom-id] @ci)
-(let [old-components (s/select [:message :components s/ALL :components s/ALL] @ci)
-      components (map #(update % :style (set/map-invert scomp/button-styles)) old-components)
+; (s/select-first [:data :custom-id] @ci)
+; (let [old-components (s/select [:message :components s/ALL :components s/ALL] @ci)
+;       components (map #(update % :style (set/map-invert scomp/button-styles)) old-components)
       
-      toggle-componenet-id (s/select-first [:data :custom-id] @ci)
+;       toggle-componenet-id (s/select-first [:data :custom-id] @ci)
 
-      primary-secondary-switch (fn [style] (case style 
-                                             :secondary :primary 
-                                             :primary :secondary))
-      components-to-add (->> components
-                           (s/transform [(s/filterer #(= (:custom-id %) toggle-componenet-id)) s/ALL] 
-                              #(update % :style primary-secondary-switch)) 
-                           (map #(scomp/button (:style %) (:custom-id %) :label (:label %)))
-                           (build-components-action-rows))]
+;       primary-secondary-switch (fn [style] (case style 
+;                                              :secondary :primary 
+;                                              :primary :secondary))
+;       components-to-add (->> components
+;                            (s/transform [(s/filterer #(= (:custom-id %) toggle-componenet-id)) s/ALL] 
+;                               #(update % :style primary-secondary-switch)) 
+;                            (map #(scomp/button (:style %) (:custom-id %) :label (:label %)))
+;                            (build-components-action-rows))]
 
-   components-to-add)   
+;    components-to-add)   
+
+(defn command-interaction [interaction]
+  @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-channel-message)) 
+  (let [{:keys [type data]} (handle-command-interaction interaction)]
+    ; (println "[command-interaction] responding: "
+      @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))
+
+
+(defn component-interaction [interaction]
+  @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-update-message))
+  ; add message_author = interactioner check here, we don't want trolls...
+  (let [{:keys [type data]} (handle-component-interaction interaction)]
+    ; (println "[component-interaction] responding: "
+    @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))
+    
+
 
 
 
 ;; Routing
 (def interaction-handlers
   (assoc sg/gateway-defaults
-         :application-command #'handle-command-interaction
-         :message-component #'handle-component-interaction))
+         :application-command #'command-interaction
+         :message-component #'component-interaction))
 
 
+(get-original-interaction-response!)
 
 
 ; (defn interaction-message-response [& {:keys [content components]}]
