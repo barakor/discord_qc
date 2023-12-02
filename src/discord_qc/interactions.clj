@@ -62,18 +62,18 @@
         user-id (s/select-first [:member :user :id] interaction)
 
         voice-channel-id (user-in-voice-channel? user-id)
-        voice-channel-members (get-voice-channel-members voice-channel-id)]
+        voice-channel-members (get-voice-channel-members voice-channel-id)
         
-
+        known-players (remove nil? (map discord-id->quake-name voice-channel-members))]
        
         ; @(discord-rest/get-channel! (:rest @state*))]
   ;       user-id (s/select-first [:member :user :id] interaction)]
-    (println voice-channel-id voice-channel-members)
+    (println known-players)
     ; (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
     ;   (do 
     ;       (db/save-discord-id->quake-name user-id quake-name)
     ;       (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
-    (srsp/update-message {:content (str (pr-str voice-channel-id) (pr-str voice-channel-members))})))
+    (srsp/update-message {:content (str (pr-str known-players))})))
 
 
 ;; Component interactions
