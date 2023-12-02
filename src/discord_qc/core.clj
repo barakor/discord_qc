@@ -57,5 +57,5 @@
     (message-pump! (:events @state*) handle-event)
     (finally (stop-bot! @state*))))
 
-(-main)
+; (-main)
 ; (reset! state* (start-bot! (:token config) :intents (:intents config)))

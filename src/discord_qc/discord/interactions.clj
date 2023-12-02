@@ -64,7 +64,7 @@
         user-id (s/select-first [:member :user :id] interaction)]
     
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
-      (do 
+      (do
           (db/save-discord-id->quake-name user-id quake-name)
           (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
@@ -73,8 +73,7 @@
 (defmethod handle-command-interaction "balance" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
         game-mode (get interaction-options "game-mode")
-        quake-names (-> interaction-options
-                      (dissoc "game-mode")
+        quake-names (->> (dissoc interaction-options "game-mode")
                       (vals)
                       (map lower-case))
         user-id (s/select-first [:member :user :id] interaction)
@@ -88,14 +87,18 @@
 
         component-id (atom 0)
 
+        quake-name-button (fn [quake-name] (scomp/button :secondary 
+                                                         (str "toggle-primary-secondary/" (str "toggle-primary-secondary/" (swap! component-id inc))) 
+                                                         :label quake-name))
         components (build-components-action-rows
                       (concat 
-                        (map #(scomp/button :secondary 
-                                            (str "toggle-primary-secondary/" (str "toggle-primary-secondary/" (swap! component-id inc))) 
-                                            :label (:quake-name %)) 
-                          (vals found-players))
+                        (->> found-players
+                          (vals)
+                          (:quake-name)
+                          (map quake-name-button))
+                        (map quake-name-button quake-names)
                         [(scomp/button :danger  "select-all-primary-secondary" :label "Select All")
-                         (scomp/button :success  "Balance!" :label "Balance!")]))]
+                         (scomp/button :success  "balance!" :label "Balance!")]))]
 
     (srsp/channel-message {:content (str (pr-str found-players)) :components components})))
 
@@ -165,6 +168,20 @@
                            (build-components-action-rows))]
 
     (srsp/update-message {:content old-content :components components})))
+
+(def x (atom nil))
+(defmethod handle-component-interaction "balance!"
+  [interaction]
+  (let [old-components (->> interaction
+                         (s/select [:message :components s/ALL :components s/ALL])
+                         (map #(update % :style (set/map-invert scomp/button-styles))))
+        
+        selected-players (s/select [s/ALL #(= (:style %) :primary) :label] old-components)]
+
+    (reset! x old-components)
+    (println (pr-str old-components)) 
+    (srsp/update-message {:content (pr-str selected-players)})))
+
 
 
 (defn component-interaction [interaction]
