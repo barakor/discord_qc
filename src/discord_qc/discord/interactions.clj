@@ -101,9 +101,13 @@
                           (map quake-name-button))
                         (map quake-name-button quake-names)
                         [(scomp/button :danger  "select-all-primary-secondary" :label "Select All")
-                         (scomp/button :success  (str "balance!/" game-mode) :label "Balance!")]))]
-
-    (srsp/channel-message {:content (str unregistered-users "are not registered") :components components})))
+                         (scomp/button :success  (str "balance!/" game-mode) :label "Balance!")]))
+        content (string/join "\n"
+                    [(when (not-empty unregistered-users) 
+                        (str "Unregistered Users: " (string/join ", " unregistered-users)))
+                     (str "Balancing for " game-mode)])]
+                     
+    (srsp/channel-message {:content content :components components})))
 
 
 (defn command-interaction [interaction]
