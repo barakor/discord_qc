@@ -204,7 +204,7 @@
                     (get-in [:data :custom-id])
                     (string/split #"/")
                     (second))
-        
+        old-content (get-in interaction [:message :content])
         old-components (->> interaction
                          (s/select [:message :components s/ALL :components s/ALL])
                          (map #(update % :style (set/map-invert scomp/button-styles))))
@@ -227,7 +227,7 @@
                                [(format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
                                 (format-team-option-msg random-team-option :title-prefix "Random Pick ")])}]]
     (reset! x players-elo-map)   
-    (srsp/update-message {:content "suggested teams whatever" :embeds embed-msg})))
+    (srsp/update-message {:content old-content :embeds embed-msg})))
 
 
 
