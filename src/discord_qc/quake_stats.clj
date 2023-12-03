@@ -1,6 +1,7 @@
 (ns discord-qc.quake-stats
   (:require 
             [clojure.set :refer [rename-keys]]
+            [clojure.string :as string]
 
             [org.httpkit.client :as http]
             [cheshire.core :refer [parse-string]]
@@ -24,7 +25,7 @@
 
 
 (defn pull-stats [quake-name]
-  (let [url (str "https://quake-stats.bethesda.net/api/v2/Player/Stats?name=" quake-name)]
+  (let [url (str "https://quake-stats.bethesda.net/api/v2/Player/Stats?name=" (string/replace quake-name #" " "%20"))]
     (http-get url)))
 
 
