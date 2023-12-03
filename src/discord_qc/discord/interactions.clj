@@ -63,7 +63,7 @@
 
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
       (do 
-          (srsp/update-message {:content (pr-str elo) :embeds (elo-map->embed elo)}))
+          (srsp/update-message {:content "" :embeds (elo-map->embed elo)}))
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
  
 
@@ -74,7 +74,7 @@
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
       (do
           (db/save-discord-id->quake-name user-id quake-name)
-          (srsp/update-message {:content (pr-str elo)}))
+          (srsp/update-message {:content "" :embeds (elo-map->embed elo)}))
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
 
 
@@ -251,4 +251,13 @@
   (assoc sg/gateway-defaults
          :application-command #'command-interaction
          :message-component #'component-interaction))
+
+
+; (def pubo-mock-msg @(discord-rest/get-channel-message! (:rest @state*) "613557878330228736" "1180375751665651784"))
+
+
+; (defn balance-pubobot-queue [])
+
+; (:embeds pubo-mock-msg)
+; (boolean (re-find #"has started" ))
 
