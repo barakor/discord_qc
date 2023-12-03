@@ -232,11 +232,12 @@
 
 (defn component-interaction [interaction]
   @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-update-message))
-  ; add message_author = interactioner check here, we don't want trolls...
-  (let [{:keys [type data]} (handle-component-interaction interaction)]
-    ; (println "[component-interaction] responding: "
-      @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))
-
+  (let [original-author-id (get-in interaction [:message :interaction :user :id])
+        interactor-id (get-in interaction [:member :user :id])]
+    (when (= original-author-id interactor-id)      
+      (let [{:keys [type data]} (handle-component-interaction interaction)]
+        ; (println "[component-interaction] responding: "
+          @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))))
 
 
 ;; Routing
