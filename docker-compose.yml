@@ -1,0 +1,21 @@
+version: "0.1"
+services:
+  quakebot-clj:
+    build: ./
+    hostname: quakebot-clj
+    container_name: quakebot-clj
+    networks:
+      - quakebot-net
+    ports:
+      - "443"
+      - "80"
+    volumes:
+      - depscache:/root/.m2
+      - rocksdb:/tmp/rocksdb
+    restart: unless-stopped
+
+networks:
+  quakebot-net: {}
+volumes:
+  depscache: {}
+  rocksdb: {}

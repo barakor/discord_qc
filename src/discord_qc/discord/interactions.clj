@@ -113,8 +113,8 @@
 (defn command-interaction [interaction]
   @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-channel-message)) 
   (let [{:keys [type data]} (handle-command-interaction interaction)]
-    (println "[command-interaction] responding: "
-      @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data))))
+    ; (println "[command-interaction] responding: "
+      @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))
 
 
 
@@ -226,7 +226,6 @@
                                (map format-weighted-team balanced-team-options)
                                [(format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
                                 (format-team-option-msg random-team-option :title-prefix "Random Pick ")])}]]
-    (reset! x players-elo-map)   
     (srsp/update-message {:content old-content :embeds embed-msg})))
 
 
@@ -235,8 +234,8 @@
   @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-update-message))
   ; add message_author = interactioner check here, we don't want trolls...
   (let [{:keys [type data]} (handle-component-interaction interaction)]
-    (println "[component-interaction] responding: "
-      @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data))))
+    ; (println "[component-interaction] responding: "
+      @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))
 
 
 
