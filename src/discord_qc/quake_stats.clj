@@ -24,7 +24,7 @@
       res)))
 
 
-(defn pull-stats [quake-name]
+(defn- pull-stats [quake-name]
   (let [url (str "https://quake-stats.bethesda.net/api/v2/Player/Stats?name=" (string/replace quake-name #" " "%20"))]
     (http-get url)))
 
@@ -76,11 +76,15 @@
                (map calc-mode-score)
                (apply merge))
         collective-elo (fn [elos game-modes]
-                         (-> elos
-                           (select-keys game-modes)
-                           (vals)
-                           (#(reduce + %))
-                           (/ (count game-modes))))
+                         (let [scores (->> elos
+                                        (#(select-keys % game-modes))
+                                        (vals)
+                                        (remove #(< % 0)))]
+
+                           (->> scores
+                             (#(reduce + %))
+                             (#(/ % (max 1 (count scores)))))))
+        
         objectives-elo (collective-elo elos objective-modes)
         killings-elo (collective-elo elos killing-modes)]
      (-> elos
