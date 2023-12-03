@@ -32,7 +32,7 @@
 (defn- calc-elos [stats]
   (let [objective-modes [:game-mode-obelisk :game-mode-obelisk-pro :game-mode-ctf]
         killing-modes [:game-mode-slipgate :game-mode-team-deathmatch :game-mode-team-deathmatch-2vs-2
-                       :game-mode-ffa :game-mode-instagib :game-mode-duel :game-mode-duel-pro]
+                       :game-mode-ffa :game-mode-instagib :game-mode-duel]
         modes-renames {:game-mode-obelisk :sacrifice 
                        :game-mode-obelisk-pro :sacrifice-tournament 
                        :game-mode-ctf :ctf
@@ -84,7 +84,7 @@
                            (->> scores
                              (#(reduce + %))
                              (#(/ % (max 1 (count scores)))))))
-        
+
         objectives-elo (collective-elo elos objective-modes)
         killings-elo (collective-elo elos killing-modes)]
      (-> elos

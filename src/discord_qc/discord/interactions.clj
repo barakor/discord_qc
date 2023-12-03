@@ -46,6 +46,12 @@
     (apply merge)))
 
 
+(defn elo-map->embed [elo-map]
+  (let [format-map-entry #(hash-map :name ((first %) elo/mode-names) :value (str (format "%.3f" (second %))))]
+    [{:type "rich" :title "Quake ELO for:" :description (:quake-name elo-map) :color 9896156
+      :fields (concat
+                (map format-map-entry (select-keys elo-map (keys elo/mode-names))))}]))
+
 
 ;; Command interactions
 (defmulti handle-command-interaction 
