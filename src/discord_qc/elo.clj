@@ -17,7 +17,6 @@
                  :duel "duel"
                  :killing "killing"
                  :objective "objective"})
-; (clojure.set/map-invert mode-names)
 
 
 (defn quake-name->elo-map [quake-name]
