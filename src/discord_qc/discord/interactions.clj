@@ -57,7 +57,7 @@
 
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
       (do 
-          (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
+          (srsp/update-message {:content (pr-str elo) :embeds (elo-map->embed elo)}))
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
  
 
@@ -68,7 +68,7 @@
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
       (do
           (db/save-discord-id->quake-name user-id quake-name)
-          (srsp/update-message {:content (pr-str elo)})) ; takes too long, need to fork out and reply later
+          (srsp/update-message {:content (pr-str elo)}))
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
 
 
