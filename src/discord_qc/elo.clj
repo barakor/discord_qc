@@ -32,8 +32,8 @@
   (try
     (if-let [elo-map (db/quake-name->elo-map quake-name)]
       elo-map
-      (quake-stats/quake-name->elo-map quake-name)))
-  (catch Exception e empty-elomap))
+      (quake-stats/quake-name->elo-map quake-name))
+    (catch Exception e empty-elomap)))
 
 (defn quake-name->mode-elo [quake-name mode]
   (let [elo-map (quake-name->elo-map quake-name)]
