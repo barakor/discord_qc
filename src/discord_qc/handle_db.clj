@@ -23,10 +23,9 @@
   (rocksdb/put-record! (str "quake-name->quake-stats/" quake-name) quake-stats))
 
 
-
 (defn migrate-old-db []
-  (let [dcids (read-string (slurp "/home/barakor/gits/discord_qc/old_db_migration/dcid_quakename.edn"))
-        qcelo (read-string (slurp "/home/barakor/gits/discord_qc/old_db_migration/qcelo.edn"))]
+  (let [dcids (read-string (slurp "discord_qc/old_db_migration/dcid_quakename.edn"))
+        qcelo (read-string (slurp "discord_qc/old_db_migration/qcelo.edn"))]
 
     (for [[dcid quake-name] dcids]
       (when (not (discord-id->quake-name dcid))
