@@ -1,7 +1,4 @@
 {
-; testing
- :token "MTEwNDA2MzMwMzA2NTUzODU3MA.Gqw15B.bEKH3G-L9HGIndmyw3fsZzoY95uDaQTIrXAq4c"
-
  :playing "Balancing Scales"
  :intents #{:guilds 
             :guild-members 
