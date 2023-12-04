@@ -15,7 +15,7 @@
 
 
 (defmethod handle-event :message-create [_ {:keys [channel-id author embeds mentions] :as event-data}]
-  (when (re-find (re-pattern "has started") (:title (first embeds)))
+  (when (and (not-empty embeds) (re-find (re-pattern "has started") (:title (first embeds))))
     (balance-pubobot-queue event-data)))
   ; does nothing rn
 
