@@ -17,7 +17,7 @@
 
 
 (defmethod handle-event :message-create [_ {:keys [channel-id author mentions] :as event-data}]
-  (when (re-find (re-pattern "has started") (s/select-first [:embeds s/FIRST :title] pubo-mock-msg))
+  (when (re-find (re-pattern "has started") (s/select-first [:embeds s/FIRST :title] event-data))
     (balance-pubobot-queue event-data)))
   ; does nothing rn
 
