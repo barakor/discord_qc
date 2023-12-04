@@ -59,6 +59,7 @@
                      :fields (concat 
                                (map format-weighted-team balanced-team-options)
                                [(format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
-                                (format-team-option-msg random-team-option :title-prefix "Random Pick ")])}]]
+                                (format-team-option-msg random-team-option :title-prefix "Random Pick ")
+                                {:name "Players ELOs:" :value (string/join ", " (map #(str (first %) ": " (second %)) players-elo-map))}])}]]
     embed-msg))
 
