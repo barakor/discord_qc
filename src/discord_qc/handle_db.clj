@@ -19,3 +19,5 @@
     (swap! all-quake-names-in-db set/union #{quake-name})
     (rocksdb/put-record! "all-quake-names-in-db" @all-quake-names-in-db)))
 
+(defn save-quake-name->quake-stats [quake-name quake-stats]
+  (rocksdb/put-record! (str "quake-name->quake-stats/" quake-name) quake-stats))

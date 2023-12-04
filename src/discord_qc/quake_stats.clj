@@ -94,6 +94,7 @@
 (defn quake-name->elo-map [quake-name]
   (println quake-name)
   (when-let [stats (pull-stats quake-name)]
+    (db/save-quake-name->quake-stats quake-name stats)
     (let [elo-map (assoc (calc-elos stats) :quake-name quake-name)]
       (db/save-quake-name->elo-map quake-name elo-map)
       elo-map)))
