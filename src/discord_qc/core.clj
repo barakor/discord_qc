@@ -8,8 +8,8 @@
 
     [discord-qc.state :refer [state* discord-state* config]]
     [discord-qc.discord.events :refer [handle-event caching-handlers]]
-    [discord-qc.discord.commands :refer [application-commands]]
-    [discord-qc.handle-db :as db]))
+    [discord-qc.discord.commands :refer [application-commands]]))
+
 
 (def bot-id (atom nil))
 
@@ -40,7 +40,6 @@
 
 
 (defn -main [& args]
-  (db/migrate-old-db)
   (reset! state* (start-bot! (:token config) :intents (:intents config)))
   (reset! bot-id (:id @(discord-rest/get-current-user! (:rest @state*))))
   (try 
