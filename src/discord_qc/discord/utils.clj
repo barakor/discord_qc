@@ -1,20 +1,9 @@
 (ns discord-qc.discord.utils
-  (:require [clojure.string :as string :refer [lower-case]]
-            [clojure.set :as set]
+  (:require [clojure.string :as string]
 
-            [discljord.messaging :as discord-rest]
-            [discljord.connections :as discord-ws]
-
-            [slash.response :as srsp]
-            [slash.gateway :as sg]
             [slash.component.structure :as scomp]
 
-            [com.rpl.specter :as s]
-            [discljord.events.state :as discord-state]
-
-            [discord-qc.state :refer [state* discord-state*]]
-            [discord-qc.quake-stats :as quake-stats]
-            [discord-qc.handle-db :as db]
+            [discord-qc.state :refer [discord-state*]]
             [discord-qc.elo :as elo]
             [discord-qc.balancing :as balancing]))
 

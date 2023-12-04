@@ -7,5 +7,9 @@
 
 (def state* (atom nil))
 
-(def config (edn/read-string (slurp "config.edn")))
+(let [token (->> "secret.edn" (slurp) (edn/read-string) (:token))]
+  (def config (-> "config.edn"
+                (slurp)
+                (edn/read-string)
+                (assoc :token token))))
 

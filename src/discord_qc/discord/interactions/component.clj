@@ -1,23 +1,17 @@
 (ns discord-qc.discord.interactions.component
-  (:require [clojure.string :as string :refer [lower-case]]
+  (:require [clojure.string :as string]
             [clojure.set :as set]
 
             [discljord.messaging :as discord-rest]
-            [discljord.connections :as discord-ws]
 
             [slash.response :as srsp]
-            [slash.gateway :as sg]
             [slash.component.structure :as scomp]
 
             [com.rpl.specter :as s]
-            [discljord.events.state :as discord-state]
 
-            [discord-qc.state :refer [state* discord-state*]]
-            [discord-qc.quake-stats :as quake-stats]
+            [discord-qc.state :refer [state*]]
             [discord-qc.elo :as elo]
-            [discord-qc.balancing :as balancing]
-            [discord-qc.handle-db :as db]
-            [discord-qc.discord.utils :refer [get-voice-channel-members user-in-voice-channel? build-components-action-rows balance-teams-embed]]))
+            [discord-qc.discord.utils :refer [build-components-action-rows balance-teams-embed]]))
 
 
 (defn get-custom-id-type [custom-id]

@@ -1,14 +1,12 @@
 (ns discord-qc.discord.events
   (:require
-    [clojure.string :as string :refer [lower-case]]
     [discljord.connections :as discord-ws]
-    [discljord.messaging :as discord-rest]
     [slash.core :as sc]
-    [slash.response :as srsp]
     [discljord.events.state :as discord-state]
 
     [discord-qc.state :refer [state* config]]
-    [discord-qc.discord.interactions :refer [interaction-handlers]]))
+    [discord-qc.discord.interactions :refer [interaction-handlers]]
+    [discord-qc.discord.interactions.message :refer [balance-pubobot-queue]]))
    
 
 (defmulti handle-event
@@ -16,8 +14,8 @@
   (fn [type _data] type))
 
 
-(defmethod handle-event :message-create [_ {:keys [channel-id author mentions] :as event-data}]
-  (when (re-find (re-pattern "has started") (s/select-first [:embeds s/FIRST :title] event-data))
+(defmethod handle-event :message-create [_ {:keys [channel-id author embeds mentions] :as event-data}]
+  (when (re-find (re-pattern "has started") (:title (first embeds)))
     (balance-pubobot-queue event-data)))
   ; does nothing rn
 

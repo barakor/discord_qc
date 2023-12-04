@@ -1,9 +1,7 @@
 (ns discord-qc.elo
     (:require 
             [discord-qc.handle-db :as db]
-            [discord-qc.quake-stats :as quake-stats]
-            
-            [clojure.pprint :refer [pprint]]))
+            [discord-qc.quake-stats :as quake-stats]))
             
 
 (def mode-names {:sacrifice "sacrifice" 

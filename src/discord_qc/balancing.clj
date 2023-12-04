@@ -1,7 +1,6 @@
 (ns discord-qc.balancing
   (:require [clojure.math.combinatorics :refer [combinations]]
-            [com.rpl.specter :as s]
-            [clojure.pprint :refer [pprint]]))
+            [com.rpl.specter :as s]))
 
 ; (def mock-players-elo {"iikxii" 5.9680834
 ;                        "cashedcheck" 3.723866
@@ -13,9 +12,7 @@
 ;                        "rapha" 0.44074476})
 
 (defn complementary-team [all-players team1]
-  (let [team1-players (keys team1)
-        team2 (apply dissoc all-players (keys team1))]
-    team2))
+  (apply dissoc all-players (keys team1)))
 
 
 (defn ideal-team-elo [players_elos]
