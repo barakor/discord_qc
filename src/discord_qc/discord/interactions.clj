@@ -51,7 +51,7 @@
         
 
 (defn balance-pubobot-queue [msg-event]
-  (let [title-msg (s/select-first [:embeds s/FIRST :title] pubo-mock-msg)]
+  (let [title-msg (s/select-first [:embeds s/FIRST :title] msg-event)]
     (when (re-find (re-pattern "has started") title-msg)
       (let [guild-id (:guild-id msg-event)
             channel-id (:channel-id msg-event)
