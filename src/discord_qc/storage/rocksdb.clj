@@ -33,7 +33,7 @@
       (swap! status* assoc :config config))
     (when (not (is-alive?)) ;; otherwise will fail if already up
       (reset! db (init-rocksdb!)))
-    (println "[storage.rocksdb]: started")
+    (println "[storage.rocksdb]: started" config)
     (swap! status* assoc :status :on)
     :on
     (catch Exception e (do 

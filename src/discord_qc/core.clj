@@ -8,8 +8,8 @@
 
     [discord-qc.state :refer [state* discord-state* config]]
     [discord-qc.discord.events :refer [handle-event caching-handlers]]
-    [discord-qc.discord.commands :refer [application-commands]]))
-
+    [discord-qc.discord.commands :refer [application-commands]]
+    [discord-qc.handle-db :as db]))
 
 (def bot-id (atom nil))
 
@@ -40,14 +40,16 @@
 
 
 (defn -main [& args]
+  (db/migrate-old-db)
   (reset! state* (start-bot! (:token config) :intents (:intents config)))
   (reset! bot-id (:id @(discord-rest/get-current-user! (:rest @state*))))
   (try 
     @(discord-rest/bulk-overwrite-guild-application-commands! (:rest @state*) @bot-id "199524231963344896" application-commands)
-    (println @(discord-rest/bulk-overwrite-global-application-commands! (:rest @state*) @bot-id application-commands))
-    (println "updated commands")
+    @(discord-rest/bulk-overwrite-global-application-commands! (:rest @state*) @bot-id application-commands)
+    (println "updated application slash commands ")
     (catch Exception e (println e)))
   (try
     (message-pump! (:events @state*) handle-event)
     (finally (stop-bot! @state*))))
 
+; (-main)
