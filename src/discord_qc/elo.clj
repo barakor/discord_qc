@@ -16,12 +16,24 @@
                  :killing "killing"
                  :objective "objective"})
 
+(def empty-elomap {:sacrifice 0 
+                   :sacrifice-tournament 0
+                   :ctf 0
+                   :slipgate 0
+                   :tdm 0
+                   :tdm-2v2 0
+                   :ffa 0 
+                   :instagib 0
+                   :duel 0
+                   :killing 0
+                   :objective 0})
 
 (defn quake-name->elo-map [quake-name]
-  (if-let [elo-map (db/quake-name->elo-map quake-name)]
-    elo-map
-    (quake-stats/quake-name->elo-map quake-name)))
-
+  (try
+    (if-let [elo-map (db/quake-name->elo-map quake-name)]
+      elo-map
+      (quake-stats/quake-name->elo-map quake-name)))
+  (catch Exception e empty-elomap))
 
 (defn quake-name->mode-elo [quake-name mode]
   (let [elo-map (quake-name->elo-map quake-name)]
