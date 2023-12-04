@@ -117,6 +117,7 @@
 (defn command-interaction [interaction]
   @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-channel-message)) 
   (let [{:keys [type data]} (handle-command-interaction interaction)]
+    ;; for debugging
     ; (println "[command-interaction] responding: "
       @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))
 

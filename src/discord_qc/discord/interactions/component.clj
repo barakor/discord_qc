@@ -17,7 +17,7 @@
             [discord-qc.elo :as elo]
             [discord-qc.balancing :as balancing]
             [discord-qc.handle-db :as db]
-            [discord-qc.discord.utils :refer [get-voice-channel-members user-in-voice-channel? build-components-action-rows]]))
+            [discord-qc.discord.utils :refer [get-voice-channel-members user-in-voice-channel? build-components-action-rows balance-teams-embed]]))
 
 
 (defn get-custom-id-type [custom-id]
@@ -77,55 +77,20 @@
     (srsp/update-message {:content old-content :components components})))
 
 
-(defn format-team-option-msg [team-option & {:keys [option-number title-prefix]}]
-  (let [title (str title-prefix " Team Option" 
-                   (when option-number (str " #" option-number)) 
-                   ", Diviation from ideal: " (format "%.3f" (:diviation-from-ideal team-option)) "%")
-        divider "\n------------------------------VS------------------------------\n"
-        team1 (->> team-option
-                :team1
-                (sort-by val >)
-                (keys)
-                (string/join ", "))
-        team1-txt (str team1 " |  Team ELO: " (format "%.3f" (:team1-elo-sum team-option)))
-        team2 (->> team-option
-                :team2
-                (sort-by val >)
-                (keys)
-                (string/join ", "))
-        team2-txt (str team2 " |  Team ELO: " (format "%.3f" (:team2-elo-sum team-option)))]
-
-    {:name title :value (str team1-txt divider team2-txt)}))
-
-
 (defmethod handle-component-interaction "balance!"
   [interaction]
   (let [game-mode (-> interaction
                     (get-in [:data :custom-id])
                     (string/split #"/")
-                    (second))
+                    (second)
+                    (#(get (set/map-invert elo/mode-names) %)))
         old-content (get-in interaction [:message :content])
         old-components (->> interaction
                          (s/select [:message :components s/ALL :components s/ALL])
                          (map #(update % :style (set/map-invert scomp/button-styles))))
         selected-players (s/select [s/ALL #(= (:style %) :primary) :label] old-components)
-        players-elo-map (->> selected-players
-                          (map elo/quake-name->elo-map)
-                          (map #(hash-map (:quake-name %) ((get (set/map-invert elo/mode-names) game-mode) %)))
-                          (apply merge))
-        balanced-team-options (take 3 (balancing/weighted-allocation players-elo-map))
-        drafted-team-option (balancing/draft-allocation players-elo-map)
-        random-team-option (balancing/shuffle-list players-elo-map)
-        team-option-counter (atom 0)
-
-        format-weighted-team (fn [team-option] (format-team-option-msg team-option 
-                                                 :option-number (swap! team-option-counter inc) 
-                                                 :title-prefix "ELO Weighted "))
-        embed-msg  [{:type "rich" :title "Balance Options" :description "Suggested Teams:" :color 9896156
-                     :fields (concat 
-                               (map format-weighted-team balanced-team-options)
-                               [(format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
-                                (format-team-option-msg random-team-option :title-prefix "Random Pick ")])}]]
+       
+        embed-msg (balance-teams-embed game-mode selected-players)]
     (srsp/update-message {:content old-content :embeds embed-msg})))
 
 
@@ -136,6 +101,7 @@
         interactor-id (get-in interaction [:member :user :id])]
     (when (= original-author-id interactor-id)      
       (let [{:keys [type data]} (handle-component-interaction interaction)]
+        ;; for debugging
         ; (println "[component-interaction] responding: "
           @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))))
 
