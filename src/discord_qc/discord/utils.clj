@@ -73,12 +73,13 @@
 
         format-weighted-team (fn [team-option] (format-team-option-msg team-option 
                                                  :option-number (swap! team-option-counter inc) 
-                                                 :title-prefix "ELO Weighted "))
-        embed-msg  [{:type "rich" :title "Balance Options" :description (str "Suggested Teams for " (name game-mode) ":"  ):color 9896156
-                     :fields (concat 
-                               (map format-weighted-team balanced-team-options)
-                               [(format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
-                                (format-team-option-msg random-team-option :title-prefix "Random Pick ")
-                                {:name "Players ELOs:" :value (string/join ", " (map #(str (first %) ": " (format "%.3f" (second %))) players-elo-map))}])}]]
-    embed-msg))
+                                                 :title-prefix "ELO Weighted "))]
+       
+    [{:type "rich" :title "Balance Options" :description (str "Suggested Teams for " (name game-mode) ":"  ):color 9896156
+      :fields (concat 
+                (map format-weighted-team balanced-team-options)
+                [(format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
+                 (format-team-option-msg random-team-option :title-prefix "Random Pick ")
+                 {:name "Players ELOs:" :value (string/join ", " (map #(str (first %) ": " (format "%.3f" (second %))) players-elo-map))}])}]))
+
 

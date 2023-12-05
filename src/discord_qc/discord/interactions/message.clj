@@ -42,7 +42,7 @@
                       (set)
                       (map (partial get-user-quake-name guild-id)))
             embed-msg (balance-teams-embed game-mode players)]
-        (discord-rest/create-message! (:rest @state*) channel-id :message-reference msg-id :embeds embed-msg)))))
+        (discord-rest/create-message! (:rest @state*) channel-id :message-reference {:message-id msg-id "message_id" msg-id} :embeds embed-msg)))))
 
 
 
