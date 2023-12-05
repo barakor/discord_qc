@@ -31,7 +31,7 @@
     (map #(if (nil? (second %))
             (hash-map (first %) {:quake-name (get-user-display-name guild-id (first %)) :registered false})
             %))
-    (apply merge)))
+    (into {})))
 
 
 (defn elo-map->embed [elo-map]
@@ -82,6 +82,7 @@
         found-players (->> voice-channel-members 
                         (find-registered-users)
                         (find-unregistered-users))
+      ; (println found-players)))
         unregistered-users (s/select [s/MAP-VALS #(= (:registered %) false) :quake-name] found-players)
 
         component-id (atom 0)
