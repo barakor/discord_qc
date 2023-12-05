@@ -12,7 +12,7 @@
             [discord-qc.quake-stats :as quake-stats]
             [discord-qc.elo :as elo]
             [discord-qc.handle-db :as db]
-            [discord-qc.discord.utils :refer [get-voice-channel-members user-in-voice-channel? build-components-action-rows]]))
+            [discord-qc.discord.utils :refer [get-voice-channel-members user-in-voice-channel? build-components-action-rows get-user-display-name]]))
 
 
 (defn map-command-interaction-options [interaction]
@@ -26,15 +26,10 @@
     (apply merge)))
 
 
-(defn get-user-display-name [user-id]
-  (when-let [display-name (get-in @discord-state* [:discljord.events.state/users user-id :display-name])]
-    (lower-case display-name)))
-
-
-(defn find-unregistered-users [users]
+(defn find-unregistered-users [guild-id users]
   (->> users 
     (map #(if (nil? (second %))
-            (hash-map (first %) {:quake-name (get-user-display-name (first %)) :registered false})
+            (hash-map (first %) {:quake-name (get-user-display-name guild-id (first %)) :registered false})
             %))
     (apply merge)))
 
@@ -77,11 +72,13 @@
         quake-names (->> (dissoc interaction-options "game-mode")
                       (vals)
                       (map lower-case))
+        guild-id (:guild-id interaction)
         user-id (s/select-first [:member :user :id] interaction)
 
         voice-channel-id (user-in-voice-channel? user-id)
         voice-channel-members (get-voice-channel-members voice-channel-id)
         
+        find-unregistered-users (partial find-unregistered-users guild-id)
         found-players (->> voice-channel-members 
                         (find-registered-users)
                         (find-unregistered-users))

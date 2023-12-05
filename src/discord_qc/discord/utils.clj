@@ -1,9 +1,11 @@
 (ns discord-qc.discord.utils
   (:require [clojure.string :as string]
 
+            [discljord.messaging :as discord-rest]
             [slash.component.structure :as scomp]
 
-            [discord-qc.state :refer [discord-state*]]
+            [discord-qc.state :refer [state* discord-state*]]
+            [discord-qc.handle-db :as db]
             [discord-qc.elo :as elo]
             [discord-qc.balancing :as balancing]))
 
@@ -11,8 +13,24 @@
 (defn get-voice-channel-members [channel-id]
   (get-in @discord-state* [:voice-channels channel-id]))
 
+
 (defn user-in-voice-channel? [user-id]
   (get-in @discord-state* [:discljord.events.state/users user-id :voice :channel-id]))
+
+
+
+(defn get-user-display-name [guild-id user-id]
+  (if-let [display-name (get-in @discord-state* [:discljord.events.state/users user-id :display-name])]
+    (string/lower-case display-name)
+    (->> @(discord-rest/get-guild-member! (:rest @state*) guild-id user-id)
+      (#(or (:nick %) (get-in % [:user :global-name]) (get-in % [:user :username])))
+      (string/lower-case))))
+
+
+(defn get-user-quake-name [guild-id user-id]
+  (if-let [quake-name (db/discord-id->quake-name user-id)]
+    quake-name
+    (get-user-display-name guild-id user-id))) 
 
 
 (defn build-components-action-rows [components]
@@ -20,6 +38,7 @@
     (partition-all 5)
     (map #(apply scomp/action-row %))
     (into [])))
+
 
 (defn format-team-option-msg [team-option & {:keys [option-number title-prefix]}]
   (let [title (str title-prefix " Team Option" 
@@ -60,6 +79,6 @@
                                (map format-weighted-team balanced-team-options)
                                [(format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
                                 (format-team-option-msg random-team-option :title-prefix "Random Pick ")
-                                {:name "Players ELOs:" :value (string/join ", " (map #(str (first %) ": " (second %)) players-elo-map))}])}]]
+                                {:name "Players ELOs:" :value (string/join ", " (map #(str (first %) ": " (format "%.3f" (second %))) players-elo-map))}])}]]
     embed-msg))
 
