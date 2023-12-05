@@ -82,11 +82,10 @@
         old-components (->> interaction
                          (s/select [:message :components s/ALL :components s/ALL])
                          (map #(update % :style (set/map-invert scomp/button-styles))))
-        selected-players (s/select [s/ALL #(= (:style %) :primary) :label] old-components)
-       
-        embed-msg (balance-teams-embed game-mode selected-players)]
-    (srsp/update-message {:content old-content :embeds embed-msg})))
-
+        selected-players (s/select [s/ALL #(= (:style %) :primary) :label] old-components)]
+    (if (> (count selected-players) 3)
+      (srsp/update-message {:content old-content :embeds (balance-teams-embed game-mode selected-players)})
+      (srsp/update-message {:embeds [{:type "rich" :title "No enough players" :color 9896156}]}))))
 
 
 (defn component-interaction [interaction]
