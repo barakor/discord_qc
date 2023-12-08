@@ -13,6 +13,7 @@
 
 
 (def pubobot-queues {"sac" :sacrifice
+                     "sac-tourney" :sacrifice-tournament
                      "tdm" :tdm
                      "slipgate" :slipgate
                      "ca2v2" :killing

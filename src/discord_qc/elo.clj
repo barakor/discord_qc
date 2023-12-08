@@ -4,14 +4,14 @@
             [discord-qc.quake-stats :as quake-stats]))
             
 
-(def mode-names {:sacrifice "sacrifice" 
-                 :sacrifice-tournament "sacrifice-tournament" 
+(def mode-names {:sacrifice "sacrifice"
+                 :sacrifice-tournament "sacrifice-tournament"
                  :ctf "ctf"
                  :slipgate "slipgate"
-                 :tdm "tdm" 
+                 :tdm "tdm"
                  :tdm-2v2 "tdm-2v2"
-                 :ffa "ffa" 
-                 :instagib "instagib" 
+                 :ffa "ffa"
+                 :instagib "instagib"
                  :duel "duel"
                  :killing "killing"
                  :objective "objective"})
