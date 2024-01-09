@@ -1,7 +1,9 @@
 (ns discord-qc.storage.rocksdb 
   (:require
        [byte-streams :as bs]
-       [clojure.edn :as edn])
+       [clojure.edn :as edn]
+
+       [taoensso.timbre :as timbre :refer [log]])
   (:import [org.rocksdb RocksDB]
            [org.rocksdb Options]))
 
@@ -22,7 +24,7 @@
 
 (defn put-record! [k v]
   (when-let [db @db*]
-    (println "[storage.rocksdb]: put into key: " k)
+    (log :info  "[storage.rocksdb]: put into key: " k)
     (.put db (rocksdb-serialize-value k) (rocksdb-serialize-value v))))
 
 
@@ -49,7 +51,7 @@
                (.setErrorIfExists   false))]
 
     (reset! db* (RocksDB/open opts db-path))
-    (println "[storage.rocksdb]: started " db-path)))
+    (log :info "[storage.rocksdb]: started " db-path)))
 
 
 (start! {:db-path "/tmp/rocksdb"})

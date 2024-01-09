@@ -6,7 +6,9 @@
 
     [discord-qc.state :refer [state* config]]
     [discord-qc.discord.interactions :refer [interaction-handlers]]
-    [discord-qc.discord.interactions.message :refer [balance-pubobot-queue]]))
+    [discord-qc.discord.interactions.message :refer [balance-pubobot-queue]]
+    
+    [taoensso.timbre :as timbre :refer [log]]))
    
 
 (defmulti handle-event
@@ -18,7 +20,7 @@
   (try
     (when (and (not-empty embeds) (re-find (re-pattern "has started") (get  (first embeds) :title "")))
       (balance-pubobot-queue event-data))
-    (catch Exception e (println "Couldn't parse message: " e))))
+    (catch Exception e (log :error (str "Couldn't parse message: " e)))))
   ; does nothing rn
 
 (defmethod handle-event :ready
@@ -27,9 +29,7 @@
   ;take easter egg from other bot and make quake role every where, manage quake role here instead (integrate them?)
 
 (defmethod handle-event :default [type data])
-;; for debugging
-  ; (println "event type: " (pr-str type))
-  ; (println "event data: " (pr-str data)))
+
 
 (defmethod handle-event :interaction-create
   [_ event-data]

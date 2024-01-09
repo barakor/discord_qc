@@ -94,7 +94,5 @@
         interactor-id (get-in interaction [:member :user :id])]
     (when (= original-author-id interactor-id)      
       (let [{:keys [type data]} (handle-component-interaction interaction)]
-        ;; for debugging
-        ; (println "[component-interaction] responding: "
           @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))))
 

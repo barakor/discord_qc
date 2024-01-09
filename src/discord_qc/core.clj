@@ -8,8 +8,13 @@
 
     [discord-qc.state :refer [state* discord-state* config]]
     [discord-qc.discord.events :refer [handle-event caching-handlers]]
-    [discord-qc.discord.commands :refer [application-commands]]))
+    [discord-qc.discord.commands :refer [application-commands]]
+    
+    [taoensso.timbre :as timbre :refer [log]]
+    [taoensso.timbre.tools.logging :refer [use-timbre]]))
 
+
+(use-timbre)
 
 (def bot-id (atom nil))
 
@@ -20,7 +25,7 @@
 
   Returns a map containing the event channel (`:events`), the gateway connection (`:gateway`) and the rest connection (`:rest`)."
   [token & {:keys [intents]}]
-  (println intents)
+  (log :info intents)
   (let [caching (caching-transducer discord-state* caching-handlers)
         event-channel (chan (async/sliding-buffer 100000) caching)
         gateway-connection (discord-ws/connect-bot! token event-channel :intents intents)
@@ -45,8 +50,8 @@
   (try 
     @(discord-rest/bulk-overwrite-guild-application-commands! (:rest @state*) @bot-id "199524231963344896" application-commands)
     @(discord-rest/bulk-overwrite-global-application-commands! (:rest @state*) @bot-id application-commands)
-    (println "updated application slash commands ")
-    (catch Exception e (println e)))
+    (log :info "updated application slash commands ")
+    (catch Exception e (log :error e)))
   (try
     (message-pump! (:events @state*) handle-event)
     (finally (stop-bot! @state*))))
