@@ -23,6 +23,7 @@
         (quake-stats/quake-name->elo-map quake-name))
     (catch Exception _ (quake-stats/get-empty-elo-map quake-name))))
 
+
 (defn quake-name->mode-elo [quake-name mode]
   (let [elo-map (quake-name->elo-map quake-name)]
     (mode elo-map)))
