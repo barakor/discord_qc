@@ -2,6 +2,7 @@
   (:require [discord-qc.storage.rocksdb :as rocksdb]
             [clojure.set :as set]))
 
+
 (def all-quake-names-in-db (atom (rocksdb/get-record "all-quake-names-in-db")))
 
 
