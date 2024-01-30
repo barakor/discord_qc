@@ -108,16 +108,17 @@
 
 
 (defmethod handle-command-interaction "refresh-db" [interaction]
-  (let [interaction-options (map-command-interaction-options interaction)
-        refresh-method (get interaction-options "method")]
-    (srsp/channel-message {:content (str "refreshing db by: " refresh-method)})))
+  (let [players-registered @db/all-quake-names-in-db]
+        
+    (doall (map quake-stats/quake-name->elo-map players-registered))
+    (srsp/channel-message {:content (str "refreshed all players stats")})))
 
 
 (defmethod handle-command-interaction "db-stats" [interaction]
   (let [players-registered @db/all-quake-names-in-db
-
         db-stats-message (string/join "\n"
                            [(str "\\# Of players registered in db: " (count players-registered))])]
+        
     (srsp/channel-message {:content db-stats-message})))
 
 

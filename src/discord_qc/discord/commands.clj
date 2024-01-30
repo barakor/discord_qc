@@ -6,12 +6,7 @@
 (def refresh-db-command
   (scs/command
    "refresh-db"
-   "refresh all stats in the db"
-   :options
-   [(scs/option "method" "Refresh Method" :string 
-      :required true 
-      :choices [{:name "recalc", :value "recalc"}
-                {:name "refresh" :value "refresh"}])]))
+   "refresh all stats in the db"))
 
 
 (def db-stats-command
