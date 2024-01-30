@@ -13,12 +13,12 @@
                  [http-kit "2.8.0-beta3"]
                  [org.clojure/math.combinatorics "0.2.0"]
 
-                 [org.clj-commons/byte-streams "0.3.4"]
+                 [com.taoensso/timbre "6.3.1"] ; has to be above nippy because of dependancies 
                  [com.taoensso/nippy "3.1.3"]
                  
-                 [org.rocksdb/rocksdbjni "8.6.7"]
+                 [org.rocksdb/rocksdbjni "8.6.7"]]
 
-                 [com.taoensso/timbre "6.3.1"]]
+                 
                  
   :repl-options {:init-ns discord-qc.core}
   :main discord-qc.core)
