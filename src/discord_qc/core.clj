@@ -8,7 +8,7 @@
 
     [discord-qc.state :refer [state* discord-state* config]]
     [discord-qc.discord.events :refer [handle-event caching-handlers]]
-    [discord-qc.discord.commands :refer [application-commands]]
+    [discord-qc.discord.commands :refer [application-commands admin-commands]]
     
     [taoensso.timbre :as timbre :refer [log]]
     [taoensso.timbre.tools.logging :refer [use-timbre]]))
@@ -48,7 +48,7 @@
   (reset! state* (start-bot! (:token config) :intents (:intents config)))
   (reset! bot-id (:id @(discord-rest/get-current-user! (:rest @state*))))
   (try 
-    @(discord-rest/bulk-overwrite-guild-application-commands! (:rest @state*) @bot-id "199524231963344896" application-commands)
+    @(discord-rest/bulk-overwrite-guild-application-commands! (:rest @state*) @bot-id "1104894380080365710" (concat application-commands admin-commands))
     @(discord-rest/bulk-overwrite-global-application-commands! (:rest @state*) @bot-id application-commands)
     (log :info "updated application slash commands ")
     (catch Exception e (log :error e)))

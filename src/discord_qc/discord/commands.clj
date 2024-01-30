@@ -2,7 +2,24 @@
   (:require
     [slash.command.structure :as scs]))
 
-    
+
+(def refresh-db-command
+  (scs/command
+   "refresh-db"
+   "refresh all stats in the db"
+   :options
+   [(scs/option "method" "Refresh Method" :string 
+      :required true 
+      :choices [{:name "recalc", :value "recalc"}
+                {:name "refresh" :value "refresh"}])]))
+
+
+(def db-stats-command
+  (scs/command
+   "db-stats"
+   "Get stats about the db"))
+
+
 (def query-command
   (scs/command
    "query"
@@ -46,3 +63,5 @@
                    
 
 (def application-commands [register-command query-command balance-command])
+
+(def admin-commands [refresh-db-command db-stats-command])

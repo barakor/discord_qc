@@ -107,6 +107,20 @@
     (srsp/channel-message {:content content :components components})))
 
 
+(defmethod handle-command-interaction "refresh-db" [interaction]
+  (let [interaction-options (map-command-interaction-options interaction)
+        refresh-method (get interaction-options "method")]
+    (srsp/channel-message {:content (str "refreshing db by: " refresh-method)})))
+
+
+(defmethod handle-command-interaction "db-stats" [interaction]
+  (let [players-registered @db/all-quake-names-in-db
+
+        db-stats-message (string/join "\n"
+                           [(str "\\# Of players registered in db: " (count players-registered))])]
+    (srsp/channel-message {:content db-stats-message})))
+
+
 (defn command-interaction [interaction]
   @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-channel-message)) 
   (let [{:keys [type data]} (handle-command-interaction interaction)]
