@@ -1,6 +1,6 @@
 (ns discord-qc.storage.rocksdb 
   (:require
-       [byte-streams :as bs]
+       [taoensso.nippy :refer [freeze thaw]]
        [clojure.edn :as edn]
 
        [taoensso.timbre :as timbre :refer [log]])
@@ -12,15 +12,13 @@
 
 
 (defn- rocksdb-serialize-value [value]
-  (bs/to-byte-array (pr-str value)))
+  (freeze value))
 
 
 (defn- rocksdb-deserialize-value [value]
-   (when-let [val (bs/to-string value)]
-     (try 
-       (edn/read-string val)
-       (catch Exception _ val))))
-
+   (try 
+     (thaw value)
+     (catch Exception _ nil)))
 
 (defn put-record! [k v]
   (when-let [db @db*]
