@@ -34,7 +34,7 @@
                                    :game-mode-ffa :game-mode-instagib :game-mode-duel})
 
 
-(defn modes-agg-stats [stats mode-name]
+(defn- modes-agg-stats [stats mode-name]
   (let [game-modes-key-path [:player-profile-stats :champions s/MAP-VALS :game-modes]]
     (->> stats
       (s/select [game-modes-key-path mode-name])
@@ -63,7 +63,7 @@
     {game-mode-name mode-score}))
 
 
-(defn collective-elo [elos game-modes]
+(defn- collective-elo [elos game-modes]
   (let [scores (->> elos
                  (#(select-keys % game-modes))
                  (vals)
