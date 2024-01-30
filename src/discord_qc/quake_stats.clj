@@ -91,10 +91,27 @@
        (rename-keys modes-renames))))
 
 
-(defn quake-name->elo-map [quake-name]
-  (when-let [stats (pull-stats quake-name)]
-    (db/save-quake-name->quake-stats quake-name stats)
-    (let [elo-map (assoc (calc-elos stats) :quake-name quake-name)]
-      (db/save-quake-name->elo-map quake-name elo-map)
-      elo-map)))
+(defn get-empty-elo-map [quake-name]
+  (let [empty-elomap {:sacrifice 0.0
+                      :sacrifice-tournament 0.0
+                      :ctf 0.0
+                      :slipgate 0.0
+                      :tdm 0.0
+                      :tdm-2v2 0.0
+                      :ffa 0.0
+                      :instagib 0.0
+                      :duel 0.0
+                      :killing 0.0
+                      :objective 0.0}]
 
+    (assoc empty-elomap :quake-name quake-name)))
+
+
+(defn quake-name->elo-map [quake-name]
+  (if-let [stats (pull-stats quake-name)]
+    (do
+      (db/save-quake-name->quake-stats quake-name stats)
+      (let [elo-map (assoc (calc-elos stats) :quake-name quake-name)]
+        (db/save-quake-name->elo-map quake-name elo-map)
+        elo-map))
+    (get-empty-elo-map quake-name)))

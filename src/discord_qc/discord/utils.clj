@@ -64,7 +64,7 @@
 (defn balance-teams-embed [game-mode players]
   (let [players-elo-map (->> players
                           (map elo/quake-name->elo-map)
-                          (map #(hash-map (:quake-name %) (game-mode %)))
+                          (map #(hash-map (:quake-name %) (get % game-mode 0)))
                           (apply merge))
         balanced-team-options (take 3 (balancing/weighted-allocation players-elo-map))
         drafted-team-option (balancing/draft-allocation players-elo-map)
