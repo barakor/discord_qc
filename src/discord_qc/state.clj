@@ -3,9 +3,9 @@
     [clojure.edn :as edn]))
 
 
-(def discord-state* (atom nil))
+(defonce discord-state* (atom nil))
 
-(def state* (atom nil))
+(defonce state* (atom nil))
 
 (let [token (->> "secret.edn" (slurp) (edn/read-string) (:token))]
   (def config (-> "config.edn"

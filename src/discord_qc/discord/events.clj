@@ -4,11 +4,12 @@
     [slash.core :as sc]
     [discljord.events.state :as discord-state]
 
-    [discord-qc.state :refer [state* config]]
+    [discord-qc.state :refer [state* config discord-state*]]
     [discord-qc.discord.interactions :refer [interaction-handlers]]
     [discord-qc.discord.interactions.message :refer [balance-pubobot-queue]]
     
-    [taoensso.timbre :as timbre :refer [log]]))
+    [taoensso.timbre :as timbre :refer [log]]
+    [com.rpl.specter :as s]))
    
 
 (defmulti handle-event
@@ -35,6 +36,17 @@
   [_ event-data]
   (sc/route-interaction interaction-handlers event-data))
 
+
+(defmethod handle-event :guild-create [type data]
+  (let [register-user-voice-channel (fn [{:keys [channel-id user-id]}]
+                                      (swap! discord-state* 
+                                             update-in [:voice-channels channel-id] 
+                                                       #(clojure.set/union % #{user-id})))
+  
+        voice-channels-users (s/select [:voice-states s/ALL (s/submap [:channel-id :user-id])] data)]
+    (doall (map register-user-voice-channel voice-channels-users))))
+    
+
 (defn voice-state-channel-update [_ {:keys [user-id guild-id channel-id] :as voice} state*]
   (when-let [old-channel-id (get-in @state* [:discljord.events.state/users user-id :voice :channel-id])]
     (swap! state* update-in [:voice-channels  old-channel-id] #(clojure.set/difference % #{user-id})))
@@ -46,7 +58,7 @@
   (discord-state/voice-state-update _ voice state*))
 
 
-;TODO : ADD A :guild-crete event wrapper to start the :voice-channels state
+;TODO : ADD A :guild-create event wrapper to start the :voice-channels state
 
 (def caching-handlers (assoc discord-state/caching-handlers :voice-state-update [#'voice-state-update-wrapper]))
 
