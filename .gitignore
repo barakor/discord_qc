@@ -12,6 +12,8 @@ pom.xml.asc
 .lein-failures
 .nrepl-port
 .cpcache/
-secret.edn
 .clj-kondo
 .lsp
+
+secret.edn
+rocksdb_backup

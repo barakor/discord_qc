@@ -107,6 +107,7 @@
     (srsp/channel-message {:content content :components components})))
 
 
+;; Admin commands
 (defmethod handle-command-interaction "refresh-db" [interaction]
   (let [players-registered @db/all-quake-names-in-db]
         
