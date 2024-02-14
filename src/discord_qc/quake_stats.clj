@@ -86,6 +86,8 @@
                              :game-mode-duel :duel 
                              :game-mode-duel-pro :ranked-duel}
         game-modes-key-path [:player-profile-stats :champions s/MAP-VALS :game-modes]
+
+        quake-name          (:name stats)
         modes-list          (->> stats
                               (s/select [game-modes-key-path s/MAP-KEYS])
                               (distinct))
@@ -100,7 +102,8 @@
      (-> elos
        (assoc :killing killings-elo)
        (assoc :objective objectives-elo)
-       (rename-keys modes-renames))))
+       (rename-keys modes-renames)
+       (assoc :quake-name quake-name))))
 
 
 (defn get-empty-elo-map [quake-name]
@@ -121,8 +124,8 @@
 
 (defn quake-name->elo-map [quake-name]
   (when-let [stats (pull-stats quake-name)]
-    (do
-      (db/save-quake-name->quake-stats quake-name stats)
-      (let [elo-map (assoc (calc-elos stats) :quake-name quake-name)]
-        (db/save-quake-name->elo-map quake-name elo-map)
+    (let [quake-stats-name (get stats :name quake-name)]
+      (db/save-quake-name->quake-stats quake-stats-name stats)
+      (let [elo-map (calc-elos stats)]
+        (db/save-quake-name->elo-map quake-stats-name elo-map)
         elo-map))))

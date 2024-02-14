@@ -61,8 +61,9 @@
     
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
       (do
-          (db/save-discord-id->quake-name user-id quake-name)
-          (srsp/update-message {:content "" :embeds (elo-map->embed elo)}))
+        (let [quake-stats-name (get elo :quake-name)]
+          (db/save-discord-id->quake-name user-id quake-stats-name)
+          (srsp/update-message {:content "" :embeds (elo-map->embed elo)})))
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
 
 
