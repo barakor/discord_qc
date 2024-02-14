@@ -107,19 +107,18 @@
 
 
 (defn get-empty-elo-map [quake-name]
-  (let [empty-elomap {:sacrifice 0.0
-                      :sacrifice-tournament 0.0
-                      :ctf 0.0
-                      :slipgate 0.0
-                      :tdm 0.0
-                      :tdm-2v2 0.0
-                      :ffa 0.0
-                      :instagib 0.0
-                      :duel 0.0
-                      :killing 0.0
-                      :objective 0.0}]
-
-    (assoc empty-elomap :quake-name quake-name)))
+  {:sacrifice 0.0
+   :sacrifice-tournament 0.0
+   :ctf 0.0
+   :slipgate 0.0
+   :tdm 0.0
+   :tdm-2v2 0.0
+   :ffa 0.0
+   :instagib 0.0
+   :duel 0.0
+   :killing 0.0
+   :objective 0.0
+   :quake-name quake-name})
 
 
 (defn quake-name->elo-map [quake-name]
