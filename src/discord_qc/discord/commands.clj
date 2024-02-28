@@ -55,6 +55,31 @@
       (scs/option "quake-name6" "Manually add quake-name to lobby" :string)
       (scs/option "quake-name7" "Manually add quake-name to lobby" :string)
       (scs/option "quake-name8" "Manually add quake-name to lobby" :string)]))
+
+
+(def pickup-reg-command
+  (scs/command
+   "pickup"
+   "Join a Pickup lobby"
+   :options
+     [(scs/option "game-mode" "Game Mode" :string 
+        :required true 
+        :choices [{:name "Sacrifice", :value "sacrifice"}
+                  {:name "Objective" :value "objective"}
+                  {:name "Killing" :value "killing"}
+                  {:name "Sacrifice Tournament", :value "sacrifice-tournament"}
+                  {:name "Slipgate", :value "slipgate"}
+                  {:name "CTF", :value "ctf"}
+                  {:name "TDM", :value "tdm"}
+                  {:name "TDM 2V2", :value "tdm-2v2"}])]))
+
+
+(def pickup-drop-command
+  (scs/command
+   "pickup"
+   "drop from pickup"))
+   
+
                    
 
 (def application-commands [register-command query-command balance-command])
