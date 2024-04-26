@@ -108,6 +108,13 @@
     (srsp/channel-message {:content content :components components})))
 
 
+
+(defmethod handle-command-interaction "join-pickup" [interaction]
+  (let [interaction-options (map-command-interaction-options interaction)
+        game-mode (get interaction-options "game-mode")]))
+
+
+
 ;; Admin commands
 (defmethod handle-command-interaction "refresh-db" [interaction]
   (let [players-registered @db/all-quake-names-in-db]
