@@ -83,3 +83,48 @@
     (into {})
     (teams players_elos)))
 
+
+
+"
+For Every odd N, r = 1, so N = (N-1) + r
+Solution for Even N:
+- By definition, every modulo operation (6,8) would be even, because N is Even
+1) if N%8=0: a = (N//8), b = 0
+2) if N%8=2: a = (N//8)-2, b = 3
+3) if N%8=4: a = (N//8)-1, b = 2
+4) if N%8=6: a = (N//8), b = 1
+
+```
+F(x) = 
+a = (N//8)-((N%8)%3)
+b = (((N%8)%3)+1) if N%8!=0 else 0 
+```
+"
+
+(defn division-into-lobbies [number-of-players]
+  "returns the number of players each lobby should have"
+  (let [n (- number-of-players (rem number-of-players 2))
+        n%8 (rem n 8)
+        n%8%3 (rem n%8 3)
+        a (- (quot n 8) n%8%3)
+        b (if (= 0 n%8) 0 (+ n%8%3 1))]
+    (into [] (concat (repeat a 8) (repeat b 6)))))
+
+
+(defn division-into-lobbies-opt [number-of-players]
+  "returns the number of players each lobby should have"
+  (let [n (- number-of-players (rem number-of-players 2))
+        n%8 (rem n 8)
+        ndiv8 (quot n 8)
+        a (case n%8
+            0 ndiv8
+            2 (- ndiv8 2)
+            4 (- ndiv8 1)
+            6 ndiv8)
+        b (case n%8
+            0 0
+            2 3
+            4 2
+            6 1)]
+    (into [] (concat (repeat a 8) (repeat b 6)))))
+

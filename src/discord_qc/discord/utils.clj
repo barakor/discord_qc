@@ -10,6 +10,12 @@
             [discord-qc.balancing :as balancing]))
 
 
+(defn split-into-groups-at [col sizes]
+  (drop-last 
+    (reduce (fn [col take] (into (vec (drop-last col)) (split-at take (last col)))) 
+      [col] sizes)))
+
+
 (defn get-voice-channel-members [channel-id]
   (get-in @discord-state* [:voice-channels channel-id]))
 
@@ -17,6 +23,20 @@
 (defn user-in-voice-channel? [user-id]
   (get-in @discord-state* [:discljord.events.state/users user-id :voice :channel-id]))
 
+
+(defn get-sibling-voice-channels-names [guild-id channel-id]
+  (let [channels (get-in @discord-state* [:discljord.events.state/guilds guild-id :channels])
+        channel-parent-id (get-in channels [channel-id :parent-id])
+        sibling-voice-channels (filter #(and (= (:type %) 2) 
+                                             (= (:parent-id %) channel-parent-id))
+                                   (vals channels))
+        lobbies-channels-names (->> sibling-voice-channels
+                                 (sort-by :position)
+                                 (drop 1) ;; first one is the HUB channel and it's used as a gathering lobby...
+                                 (map :name)
+                                 (partition 2))]
+
+    lobbies-channels-names))
 
 
 (defn get-user-display-name [guild-id user-id]
@@ -61,6 +81,25 @@
     {:name title :value (str team1-txt divider team2-txt)}))
 
 
+(defn format-lobby-players-msg [team-option team1-name team2-name]
+  (let [title (str team1-name " VS " team2-name)
+        divider "\n------------------------------VS------------------------------\n"
+        team1 (->> team-option
+                :team1
+                (sort-by val >)
+                (keys)
+                (string/join ", "))
+        team1-txt (str team1-name ": " team1) ;" |  Team ELO: " (format "%.3f" (:team1-elo-sum team-option)))
+        team2 (->> team-option
+                :team2
+                (sort-by val >)
+                (keys)
+                (string/join ", "))
+        team2-txt (str team2-name ": "  team2)] ;" |  Team ELO: " (format "%.3f" (:team2-elo-sum team-option)))]
+
+    {:name title :value (str team1-txt divider team2-txt)}))
+
+
 (defn balance-teams-embed [game-mode players]
   (let [players-elo-map (->> players
                           (map elo/quake-name->elo-map)
@@ -75,11 +114,34 @@
                                                  :option-number (swap! team-option-counter inc) 
                                                  :title-prefix "ELO Weighted "))]
        
-    [{:type "rich" :title "Balance Options" :description (str "Suggested Teams for " (name game-mode) ":"  ):color 9896156
+    [{:type "rich" 
+      :title "Balance Options" 
+      :description (str "Suggested Teams for " (name game-mode) ":") 
+      :color 9896156
       :fields (concat 
                 (map format-weighted-team balanced-team-options)
                 [(format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
                  (format-team-option-msg random-team-option :title-prefix "Random Pick ")
                  {:name "Players ELOs:" :value (string/join ", " (map #(str (first %) ": " (format "%.3f" (second %))) players-elo-map))}])}]))
 
+
+(defn divide-hub-embed [game-mode players lobbies-names]
+  (let [players-elo-map (->> players
+                          (map elo/quake-name->elo-map)
+                          (map #(hash-map (:quake-name %) (get % game-mode 0)))
+                          (apply merge))
+        
+        team-sizes (balancing/division-into-lobbies-opt (count players))
+        lobby-balance! (fn [players] (rand-nth (take 3 (balancing/weighted-allocation (->> players
+                                                                                        (map elo/quake-name->elo-map)
+                                                                                        (map #(hash-map (:quake-name %) (get % game-mode 0)))
+                                                                                        (apply merge))))))
+        lobbies-players (split-into-groups-at (shuffle players) team-sizes)
+        lobbies (zipmap lobbies-names (map lobby-balance! lobbies-players))]
+       
+    [{:type "rich" 
+      :title "Balance Options" 
+      :description (str "Suggested lobbies teams for " (name game-mode) ":")
+      :color 9896156
+      :fields (map #(format-lobby-players-msg (second %) (first (first %)) (second (first %))) lobbies)}]))
 

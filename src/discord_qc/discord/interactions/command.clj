@@ -1,5 +1,6 @@
 (ns discord-qc.discord.interactions.command
   (:require [clojure.string :as string :refer [lower-case]]
+            [clojure.set :as set]
 
             [discljord.messaging :as discord-rest]
 
@@ -12,7 +13,12 @@
             [discord-qc.quake-stats :as quake-stats]
             [discord-qc.elo :as elo]
             [discord-qc.handle-db :as db]
-            [discord-qc.discord.utils :refer [get-voice-channel-members user-in-voice-channel? build-components-action-rows get-user-display-name]]))
+            [discord-qc.discord.utils :refer [get-voice-channel-members 
+                                              user-in-voice-channel? 
+                                              build-components-action-rows 
+                                              get-user-display-name
+                                              divide-hub-embed
+                                              get-sibling-voice-channels-names]]))
 
 
 (defn map-command-interaction-options [interaction]
@@ -106,6 +112,33 @@
                      (str "Balancing for " game-mode)])]
                      
     (srsp/channel-message {:content content :components components})))
+
+
+(defmethod handle-command-interaction "divide" [interaction]
+  (let [interaction-options (map-command-interaction-options interaction)
+        game-mode (get (set/map-invert elo/mode-names) (get interaction-options "game-mode"))
+        guild-id (:guild-id interaction)
+        user-id (s/select-first [:member :user :id] interaction)
+
+        voice-channel-id (user-in-voice-channel? user-id)
+        voice-channel-members (get-voice-channel-members voice-channel-id)
+        lobbies-names (get-sibling-voice-channels-names guild-id voice-channel-id)
+
+        find-unregistered-users (partial find-unregistered-users guild-id)
+        found-players (->> voice-channel-members 
+                        (find-registered-users)
+                        (find-unregistered-users))
+
+        unregistered-users (s/select [s/MAP-VALS #(= (:registered %) false) :quake-name] found-players)
+   
+        content    (string/join "\n"
+                     [(when (not-empty unregistered-users) 
+                         (str "Unregistered Users: " (string/join ", " unregistered-users)))
+                      (str "Balancing for " game-mode)])
+
+        embeds     (divide-hub-embed game-mode found-players lobbies-names)]
+
+    (srsp/channel-message {:content content :embeds embeds})))
 
 
 ;; Admin commands
