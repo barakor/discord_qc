@@ -128,6 +128,7 @@
         found-players (->> voice-channel-members 
                         (find-registered-users)
                         (find-unregistered-users))
+        players (map :quake-name (vals found-players))
 
         unregistered-users (s/select [s/MAP-VALS #(= (:registered %) false) :quake-name] found-players)
    
@@ -136,7 +137,7 @@
                          (str "Unregistered Users: " (string/join ", " unregistered-users)))
                       (str "Balancing for " game-mode)])
 
-        embeds     (divide-hub-embed game-mode found-players lobbies-names)]
+        embeds     (divide-hub-embed game-mode players lobbies-names)]
 
     (srsp/channel-message {:content content :embeds embeds})))
 

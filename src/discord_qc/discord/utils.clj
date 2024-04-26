@@ -126,19 +126,14 @@
 
 
 (defn divide-hub-embed [game-mode players lobbies-names]
-  (let [players-elo-map (->> players
-                          (map elo/quake-name->elo-map)
-                          (map #(hash-map (:quake-name %) (get % game-mode 0)))
-                          (apply merge))
-        
-        team-sizes (balancing/division-into-lobbies-opt (count players))
+  (let [team-sizes (balancing/division-into-lobbies-opt (count players))
         lobby-balance! (fn [players] (rand-nth (take 3 (balancing/weighted-allocation (->> players
                                                                                         (map elo/quake-name->elo-map)
                                                                                         (map #(hash-map (:quake-name %) (get % game-mode 0)))
                                                                                         (apply merge))))))
         lobbies-players (split-into-groups-at (shuffle players) team-sizes)
         lobbies (zipmap lobbies-names (map lobby-balance! lobbies-players))]
-       
+
     [{:type "rich" 
       :title "Balance Options" 
       :description (str "Suggested lobbies teams for " (name game-mode) ":")
