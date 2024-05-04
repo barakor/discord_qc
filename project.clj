@@ -18,7 +18,9 @@
                  [org.clj-commons/byte-streams "0.3.4"]
                  [com.taoensso/nippy "3.1.3"]
                  
-                 [org.rocksdb/rocksdbjni "8.6.7"]]
+                 [org.rocksdb/rocksdbjni "8.6.7"]
+                 
+                 [philoskim/debux "0.9.1"]]
 
                  
                  

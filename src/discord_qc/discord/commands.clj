@@ -66,7 +66,16 @@
    :options
      [(scs/option "game-mode" "Game Mode" :string 
         :required true 
-        :choices game-mode-choices)]))
+        :choices game-mode-choices)
+      (scs/option "discord-tag1" "Manually a discord user as a spectator" :string)
+      (scs/option "discord-tag2" "Manually a discord user as a spectator" :string)
+      (scs/option "discord-tag3" "Manually a discord user as a spectator" :string)
+      (scs/option "discord-tag4" "Manually a discord user as a spectator" :string)
+      (scs/option "discord-tag5" "Manually a discord user as a spectator" :string)
+      (scs/option "discord-tag6" "Manually a discord user as a spectator" :string)
+      (scs/option "discord-tag7" "Manually a discord user as a spectator" :string)
+      (scs/option "discord-tag8" "Manually a discord user as a spectator" :string)]))
+
 
 
 (def application-commands [register-command query-command balance-command divide-command])

@@ -21,7 +21,7 @@
                                                            find-registered-users
                                                            find-unregistered-users
                                                            divide-hub]]))
-
+(use 'debux.core)
 
 
 (defn elo-map->embed [elo-map]
@@ -97,12 +97,20 @@
                      
     (srsp/channel-message {:content content :components components})))
 
-
+(dbgn)
 (defmethod handle-command-interaction "divide" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
+        guild-id (:guild-id interaction)
+        user-id (s/select-first [:member :user :id] interaction)
         game-mode (get (set/map-invert elo/mode-names) (get interaction-options "game-mode"))
-        ignored-players []]
-    (srsp/channel-message (divide-hub interaction game-mode ignored-players))))
+        
+        clean-user-id! (fn [user-id] (apply str (filter #(not (contains? #{\@ \> \<} %)) user-id)))
+        ignored-discord-users (->> (dissoc interaction-options "game-mode")
+                                   (vals)
+                                   (map clean-user-id!)
+                                   (set))]
+
+    (srsp/channel-message (divide-hub guild-id user-id game-mode ignored-discord-users))))
 
 
 ;; Admin commands

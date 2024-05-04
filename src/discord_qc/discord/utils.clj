@@ -133,19 +133,23 @@
                                                                                         (apply merge))))))
         shuffled-players (shuffle players)
         spectators (if (= (rem (count players) 2) 1)
-                     (into spectators (last shuffled-players))
+                     (conj spectators (last shuffled-players))
                      spectators)
 
         lobbies-players (split-into-groups-at shuffled-players team-sizes)
         lobbies (zipmap lobbies-names (map lobby-balance! lobbies-players))
         
-        sepctator-field {:name spectators :value (string/join ", " spectators)}
+        sepctator-field {:name "Spectators" :value (string/join ", " (map #(str "<@" % ">") spectators))}
 
-        fields (map #(format-lobby-players-msg (second %) (first (first %)) (second (first %))) lobbies)]
-        
+        fields (map #(format-lobby-players-msg (second %) (first (first %)) (second (first %))) lobbies)
+
+        msg-fields (if (not-empty spectators)
+                     (concat fields [sepctator-field])
+                     fields)]
 
     [{:type "rich" 
       :title "Balance Options" 
       :description (str "Suggested lobbies teams for " (name game-mode) ":")
       :color 9896156
-      :fields (concat fields [sepctator-field])}]))
+      :fields msg-fields}]))
+

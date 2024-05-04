@@ -90,13 +90,15 @@
 
 (defmethod handle-component-interaction "reshuffle!"
   [interaction]
-  (let [game-mode (-> interaction
+  (let [guild-id (:guild-id interaction)
+        user-id (s/select-first [:member :user :id] interaction)
+        game-mode (-> interaction
                     (get-in [:data :custom-id])
                     (string/split #"/")
                     (second)
                     (#(get (set/map-invert elo/mode-names) %)))
-        ignored-players []]
-      (srsp/update-message (divide-hub interaction game-mode ignored-players))))
+        ignored-players (set [])]
+      (srsp/update-message (divide-hub guild-id user-id game-mode ignored-players))))
 
 
 (defn component-interaction [interaction]
