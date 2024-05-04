@@ -125,18 +125,27 @@
                  {:name "Players ELOs:" :value (string/join ", " (map #(str (first %) ": " (format "%.3f" (second %))) players-elo-map))}])}]))
 
 
-(defn divide-hub-embed [game-mode players lobbies-names]
+(defn divide-hub-embed [game-mode players lobbies-names spectators]
   (let [team-sizes (balancing/division-into-lobbies-opt (count players))
         lobby-balance! (fn [players] (rand-nth (take 3 (balancing/weighted-allocation (->> players
                                                                                         (map elo/quake-name->elo-map)
                                                                                         (map #(hash-map (:quake-name %) (get % game-mode 0)))
                                                                                         (apply merge))))))
-        lobbies-players (split-into-groups-at (shuffle players) team-sizes)
-        lobbies (zipmap lobbies-names (map lobby-balance! lobbies-players))]
+        shuffled-players (shuffle players)
+        spectators (if (= (rem (count players) 2) 1)
+                     (into spectators (last shuffled-players))
+                     spectators)
+
+        lobbies-players (split-into-groups-at shuffled-players team-sizes)
+        lobbies (zipmap lobbies-names (map lobby-balance! lobbies-players))
+        
+        sepctator-field {:name spectators :value (string/join ", " spectators)}
+
+        fields (map #(format-lobby-players-msg (second %) (first (first %)) (second (first %))) lobbies)]
+        
 
     [{:type "rich" 
       :title "Balance Options" 
       :description (str "Suggested lobbies teams for " (name game-mode) ":")
       :color 9896156
-      :fields (map #(format-lobby-players-msg (second %) (first (first %)) (second (first %))) lobbies)}]))
-
+      :fields (concat fields [sepctator-field])}]))
