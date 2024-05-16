@@ -92,12 +92,14 @@
   [interaction]
   (let [guild-id (:guild-id interaction)
         user-id (s/select-first [:member :user :id] interaction)
-        game-mode (-> interaction
-                    (get-in [:data :custom-id])
-                    (string/split #"/")
+        custom-id-fields (-> interaction
+                           (get-in [:data :custom-id])
+                           (string/split #"/"))
+        game-mode (-> custom-id-fields
                     (second)
                     (#(get (set/map-invert elo/mode-names) %)))
-        ignored-players (set [])]
+
+        ignored-players (set (drop 2 custom-id-fields))] 
       (srsp/update-message (divide-hub guild-id user-id game-mode ignored-players))))
 
 

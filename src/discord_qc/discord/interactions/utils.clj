@@ -13,7 +13,7 @@
                                               get-user-display-name
                                               get-sibling-voice-channels-names
                                               divide-hub-embed]]))
-(use 'debux.core)
+; (use 'debux.core)
 
 
 (defn map-command-interaction-options [interaction]
@@ -35,29 +35,32 @@
     (into {})))
 
 
-(defn divide-hub [guild-id user-id game-mode ignored-users]
+(defn divide-hub [guild-id user-id game-mode ignored-players]
   (let [voice-channel-id (user-in-voice-channel? user-id)
         voice-channel-members (get-voice-channel-members voice-channel-id)
         lobbies-names (get-sibling-voice-channels-names guild-id voice-channel-id)
 
         find-unregistered-users (partial find-unregistered-users guild-id)
         found-players (->> voice-channel-members
-                        (filter #(not (contains? ignored-users %)))
                         (find-registered-users)
                         (find-unregistered-users))
-        players (map :quake-name (vals found-players))
 
+        players (->> found-players
+                  (vals)
+                  (map :quake-name)
+                  (filter #(not (contains? ignored-players %))))
+       
         unregistered-users (s/select [s/MAP-VALS #(= (:registered %) false) :quake-name] found-players)
         
         components (build-components-action-rows
                      [(scomp/button :success  
-                                    (string/join "/" (into ["reshuffle!" (name game-mode)] ignored-users))
+                                    (string/join "/" (into ["reshuffle!" (name game-mode)] ignored-players))
                                     :label "Reshuffle!")])
         content    (string/join "\n"
                      [(when (not-empty unregistered-users) 
                          (str "Unregistered Users: " (string/join ", " unregistered-users)))
-                      (str "Balancing for " game-mode)
+                      (str "Balancing for " (name game-mode))
                       (str "Found " (count players) " players")])
 
-        embeds     (divide-hub-embed game-mode players lobbies-names ignored-users)]
+        embeds     (divide-hub-embed game-mode players lobbies-names ignored-players)]
     {:content content :embeds embeds :components components}))
