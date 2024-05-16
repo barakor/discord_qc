@@ -15,15 +15,15 @@
   (apply dissoc all-players (keys team1)))
 
 
-(defn ideal-team-elo [players_elos]
-  (->> players_elos
+(defn ideal-team-elo [players-elos]
+  (->> players-elos
     (vals)
     (reduce +)
     (#(/ % 2))))
 
 
-(defn highest-elo-player [players_elos]
-  (first (last (sort-by val players_elos))))
+(defn nth-hightest-elo-player [players-elos rank]
+  (first (nth (reverse (sort-by val players-elos)) rank)))
 
 
 (defn team-elo [team]
@@ -38,12 +38,12 @@
   (/ (distance-from-ideal-team-elo ideal-team-elo-sum team) ideal-team-elo-sum))
 
 
-(defn teams [players_elos team1]
-  (let [ideal-team-elo-sum (ideal-team-elo players_elos)
+(defn teams [players-elos team1]
+  (let [ideal-team-elo-sum (ideal-team-elo players-elos)
         distance-from-ideal-team-elo (partial distance-from-ideal-team-elo ideal-team-elo-sum)
         diviation-from-ideal-team-elo (partial diviation-from-ideal-team-elo ideal-team-elo-sum)
         enrich-teams (fn [team1]
-                       (let [team2 (complementary-team players_elos team1)]
+                       (let [team2 (complementary-team players-elos team1)]
                          {:team1 team1
                           :team1-elo-sum (team-elo team1)
                           :team2 team2
@@ -53,35 +53,47 @@
     (enrich-teams team1)))
 
 
-(defn weighted-allocation [players_elos]
-  (let [team-size (int (/ (count players_elos) 2))
-        highest-elo-player-name (highest-elo-player players_elos)
-        ideal-elo (ideal-team-elo players_elos)]
-    (->> (combinations players_elos team-size)
+(defn weighted-allocation [players-elos]
+  (let [team-size (int (/ (count players-elos) 2))
+        highest-elo-player-name (nth-hightest-elo-player players-elos 0)
+        ideal-elo (ideal-team-elo players-elos)]
+    (->> (combinations players-elos team-size)
       (map #(into {} %))
       (s/select [s/ALL #(get % highest-elo-player-name)])
       (sort-by #(diviation-from-ideal-team-elo ideal-elo %))
-      ; (take 3)
-      (map #(teams players_elos %)))))
+      (map #(teams players-elos %)))))
 
 
-(defn shuffle-list [players_elos]
-  (let [team-size (int (/ (count players_elos) 2))
-        players (->> players_elos
+(defn hybrid-draft-weighted-allocation [players-elos]
+  (let [team-size (int (/ (count players-elos) 2))
+        captain1-name (nth-hightest-elo-player players-elos 0)
+        captain2-name (nth-hightest-elo-player players-elos 1)
+        ideal-elo (ideal-team-elo players-elos)]
+    (->> (combinations players-elos team-size)
+      (map #(into {} %))
+      (s/select [s/ALL #(and (get % captain1-name) 
+                             (not (get % captain2-name)))])
+      (sort-by #(diviation-from-ideal-team-elo ideal-elo %))
+      (map #(teams players-elos %)))))
+
+
+(defn shuffle-list [players-elos]
+  (let [team-size (int (/ (count players-elos) 2))
+        players (->> players-elos
                    (keys)
                    (shuffle)
                    (take team-size))]
     
-    (teams  players_elos (select-keys players_elos players))))
+    (teams  players-elos (select-keys players-elos players))))
 
 
-(defn draft-allocation [players_elos]
-  (->> players_elos
+(defn draft-allocation [players-elos]
+  (->> players-elos
     (sort-by val)
     (partition 2)
     (map second)
     (into {})
-    (teams players_elos)))
+    (teams players-elos)))
 
 
 
