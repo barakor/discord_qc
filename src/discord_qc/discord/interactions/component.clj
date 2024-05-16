@@ -11,8 +11,8 @@
 
             [discord-qc.state :refer [state*]]
             [discord-qc.elo :as elo]
-            [discord-qc.discord.utils :refer [build-components-action-rows balance-teams-embed]]))
-
+            [discord-qc.discord.utils :refer [build-components-action-rows balance-teams-embed]]
+            [discord-qc.discord.interactions.utils :refer [divide-hub]]))
 
 (defn get-custom-id-type [custom-id]
   (-> custom-id
@@ -86,6 +86,21 @@
     (if (> (count selected-players) 3)
       (srsp/update-message {:content old-content :embeds (balance-teams-embed game-mode selected-players)})
       (srsp/update-message {:embeds [{:type "rich" :title "No enough players" :color 9896156}]}))))
+
+
+(defmethod handle-component-interaction "reshuffle!"
+  [interaction]
+  (let [guild-id (:guild-id interaction)
+        user-id (s/select-first [:member :user :id] interaction)
+        custom-id-fields (-> interaction
+                           (get-in [:data :custom-id])
+                           (string/split #"/"))
+        game-mode (-> custom-id-fields
+                    (second)
+                    (#(get (set/map-invert elo/mode-names) %)))
+
+        ignored-players (set (drop 2 custom-id-fields))] 
+      (srsp/update-message (divide-hub guild-id user-id game-mode ignored-players))))
 
 
 (defn component-interaction [interaction]

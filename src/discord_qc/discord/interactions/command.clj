@@ -16,28 +16,11 @@
             [discord-qc.discord.utils :refer [get-voice-channel-members 
                                               user-in-voice-channel? 
                                               build-components-action-rows 
-                                              get-user-display-name
-                                              divide-hub-embed
-                                              get-sibling-voice-channels-names]]))
-
-
-(defn map-command-interaction-options [interaction]
-  (into {} (map #(hash-map (:name %) (:value %)) (get-in interaction [:data :options]))))  
-
-
-(defn find-registered-users [user-ids]
-  (->> user-ids
-    (map #(hash-map % (when-let [quake-name (db/discord-id->quake-name %)] 
-                        {:quake-name quake-name :registered true}))) 
-    (apply merge)))
-
-
-(defn find-unregistered-users [guild-id users]
-  (->> users 
-    (map #(if (nil? (second %))
-            (hash-map (first %) {:quake-name (get-user-display-name guild-id (first %)) :registered false})
-            %))
-    (into {})))
+                                              get-user-display-name]]
+            [discord-qc.discord.interactions.utils :refer [map-command-interaction-options
+                                                           find-registered-users
+                                                           find-unregistered-users
+                                                           divide-hub]]))
 
 
 (defn elo-map->embed [elo-map]
@@ -59,7 +42,7 @@
       (do 
           (srsp/update-message {:content "" :embeds (elo-map->embed elo)}))
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
- 
+
 
 (defmethod handle-command-interaction "register" [interaction]
   (let [quake-name (lower-case (get (map-command-interaction-options interaction) "quake-name"))
@@ -116,30 +99,20 @@
 
 (defmethod handle-command-interaction "divide" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
-        game-mode (get (set/map-invert elo/mode-names) (get interaction-options "game-mode"))
         guild-id (:guild-id interaction)
         user-id (s/select-first [:member :user :id] interaction)
+        game-mode (get (set/map-invert elo/mode-names) (get interaction-options "game-mode"))
+        
+        clean-user-id! (fn [user-id] (apply str (filter #(not (contains? #{\@ \> \<} %)) user-id)))
 
-        voice-channel-id (user-in-voice-channel? user-id)
-        voice-channel-members (get-voice-channel-members voice-channel-id)
-        lobbies-names (get-sibling-voice-channels-names guild-id voice-channel-id)
+        ignored-players (->> (dissoc interaction-options "game-mode")
+                             (vals)
+                             (map clean-user-id!)
+                             (map db/discord-id->quake-name)
+                             (filter some?)
+                             (set))]
 
-        find-unregistered-users (partial find-unregistered-users guild-id)
-        found-players (->> voice-channel-members 
-                        (find-registered-users)
-                        (find-unregistered-users))
-        players (map :quake-name (vals found-players))
-
-        unregistered-users (s/select [s/MAP-VALS #(= (:registered %) false) :quake-name] found-players)
-   
-        content    (string/join "\n"
-                     [(when (not-empty unregistered-users) 
-                         (str "Unregistered Users: " (string/join ", " unregistered-users)))
-                      (str "Balancing for " game-mode)])
-
-        embeds     (divide-hub-embed game-mode players lobbies-names)]
-
-    (srsp/channel-message {:content content :embeds embeds})))
+    (srsp/channel-message (divide-hub guild-id user-id game-mode ignored-players))))
 
 
 ;; Admin commands
