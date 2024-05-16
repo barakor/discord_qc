@@ -63,7 +63,7 @@
 (defn format-team-option-msg [team-option & {:keys [option-number title-prefix]}]
   (let [title (str title-prefix " Team Option" 
                    (when option-number (str " #" option-number)) 
-                   ", Diviation from ideal: " (format "%.3f" (:diviation-from-ideal team-option)) "%")
+               )
         divider "\n------------------------------VS------------------------------\n"
         team1 (->> team-option
                 :team1
@@ -138,8 +138,8 @@
 
         lobbies-players (split-into-groups-at shuffled-players team-sizes)
         lobbies (zipmap lobbies-names (map lobby-balance! lobbies-players))
-        
-        sepctator-field {:name "Spectators" :value (string/join ", " (map #(str "<@" % ">") spectators))}
+
+        sepctator-field {:name "Spectators" :value (string/join ", " spectators)}
 
         fields (map #(format-lobby-players-msg (second %) (first (first %)) (second (first %))) lobbies)
 
