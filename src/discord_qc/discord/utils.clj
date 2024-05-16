@@ -106,8 +106,8 @@
                           (map #(hash-map (:quake-name %) (get % game-mode 0)))
                           (apply merge))
         balanced-team-options (take 3 (balancing/weighted-allocation players-elo-map))
-        hybrid-team-option (first (balancing/hybrid-draft-weighted-allocation players-elo-map))
-        drafted-team-option (balancing/draft-allocation players-elo-map)
+        ; hybrid-team-option (first (balancing/hybrid-draft-weighted-allocation players-elo-map))
+        ; drafted-team-option (balancing/draft-allocation players-elo-map)
         ; random-team-option (balancing/shuffle-list players-elo-map)
         team-option-counter (atom 0)
 
@@ -121,15 +121,16 @@
       :color 9896156
       :fields (concat 
                 (map format-weighted-team balanced-team-options)
-                [(format-team-option-msg hybrid-team-option :title-prefix "Hybrid Balance ")
-                 (format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
+                [
+                 ; (format-team-option-msg hybrid-team-option :title-prefix "Hybrid Balance ")
+                 ; (format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
                  ; (format-team-option-msg random-team-option :title-prefix "Random Pick ") ;; dropping it but I am not ready to delete it just yet
                  {:name "Players ELOs:" :value (string/join ", " (map #(str (first %) ": " (format "%.3f" (second %))) players-elo-map))}])}]))
 
 
 (defn divide-hub-embed [game-mode players lobbies-names spectators]
   (let [team-sizes (balancing/division-into-lobbies-opt (count players))
-        lobby-balance! (fn [players] (rand-nth (take 3 (balancing/hybrid-draft-weighted-allocation (->> players
+        lobby-balance! (fn [players] (rand-nth (take 1 (balancing/hybrid-draft-weighted-allocation (->> players
                                                                                                      (map elo/quake-name->elo-map)
                                                                                                      (map #(hash-map (:quake-name %) (get % game-mode 0)))
                                                                                                      (apply merge))))))
