@@ -13,6 +13,7 @@
             [discord-qc.quake-stats :as quake-stats]
             [discord-qc.elo :as elo]
             [discord-qc.handle-db :as db]
+            [discord-qc.utils :refer [get-keys-starting-with]]
             [discord-qc.discord.utils :refer [get-voice-channel-members 
                                               user-in-voice-channel? 
                                               build-components-action-rows 
@@ -46,12 +47,24 @@
 
 (defmethod handle-command-interaction "register" [interaction]
   (let [quake-name (lower-case (get (map-command-interaction-options interaction) "quake-name"))
-        user-id (s/select-first [:member :user :id] interaction)]
+        discord-id (s/select-first [:member :user :id] interaction)]
     
     (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
       (do
         (let [quake-stats-name (get elo :quake-name)]
-          (db/save-discord-id->quake-name user-id quake-stats-name)
+          (db/save-discord-id->quake-name discord-id quake-stats-name)
+          (srsp/update-message {:content "" :embeds (elo-map->embed elo)})))
+      (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
+
+
+(defmethod handle-command-interaction "manual-register" [interaction]
+  (let [quake-name (lower-case (get (map-command-interaction-options interaction) "quake-name"))
+        discord-id (lower-case (get (map-command-interaction-options interaction) "discord-id"))]
+    
+    (if-let [elo (quake-stats/quake-name->elo-map quake-name)]
+      (do
+        (let [quake-stats-name (get elo :quake-name)]
+          (db/save-discord-id->quake-name discord-id quake-stats-name)
           (srsp/update-message {:content "" :embeds (elo-map->embed elo)})))
       (srsp/update-message {:content (str "couldn't find quake name " quake-name)}))))
 
@@ -59,7 +72,7 @@
 (defmethod handle-command-interaction "balance" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
         game-mode (get interaction-options "game-mode")
-        quake-names (->> (dissoc interaction-options "game-mode")
+        quake-names (->> (get-keys-starting-with interaction-options "quake-name")
                       (vals)
                       (map lower-case))
         guild-id (:guild-id interaction)
@@ -93,7 +106,6 @@
                     [(when (not-empty unregistered-users) 
                         (str "Unregistered Users: " (string/join ", " unregistered-users)))
                      (str "Balancing for " game-mode)])]
-                     
     (srsp/channel-message {:content content :components components})))
 
 
@@ -105,7 +117,7 @@
         
         clean-user-id! (fn [user-id] (apply str (filter #(not (contains? #{\@ \> \<} %)) user-id)))
 
-        ignored-players (->> (dissoc interaction-options "game-mode")
+        ignored-players (->> (get-keys-starting-with interaction-options "discord-tag")
                              (vals)
                              (map clean-user-id!)
                              (map db/discord-id->quake-name)
