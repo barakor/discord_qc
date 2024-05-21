@@ -60,7 +60,8 @@
                      [(when (not-empty unregistered-users) 
                          (str "Unregistered Users: " (string/join ", " unregistered-users)))
                       (str "Balancing for " (name game-mode))
-                      (str "Found " (count players) " players")])
+                      (str "Found " (count players) " players")])]
 
-        embeds     (divide-hub-embed game-mode players lobbies-names ignored-players)]
-    {:content content :embeds embeds :components components}))
+    (if (<= (count players) 3)
+      {:content (str content "\n" "Not Enough players to divide into teams") :components components}
+      {:content content :embeds (divide-hub-embed game-mode players lobbies-names ignored-players) :components components})))

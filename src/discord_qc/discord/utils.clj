@@ -130,10 +130,14 @@
 
 (defn divide-hub-embed [game-mode players lobbies-names spectators]
   (let [team-sizes (balancing/division-into-lobbies-opt (count players))
-        lobby-balance! (fn [players] (rand-nth (take 1 (balancing/hybrid-draft-weighted-allocation (->> players
-                                                                                                     (map elo/quake-name->elo-map)
-                                                                                                     (map #(hash-map (:quake-name %) (get % game-mode 0)))
-                                                                                                     (apply merge))))))
+        lobby-balance! (fn [players] (some->> players
+                                       (not-empty)
+                                       (map elo/quake-name->elo-map)
+                                       (map #(hash-map (:quake-name %) (get % game-mode 0)))
+                                       (apply merge)
+                                       (balancing/hybrid-draft-weighted-allocation)
+                                       (first)))
+
         shuffled-players (shuffle players)
         spectators (if (= (rem (count players) 2) 1)
                      (conj spectators (last shuffled-players))
