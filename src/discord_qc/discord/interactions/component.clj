@@ -12,7 +12,7 @@
             [discord-qc.state :refer [state*]]
             [discord-qc.elo :as elo]
             [discord-qc.discord.utils :refer [build-components-action-rows balance-teams-embed]]
-            [discord-qc.discord.interactions.utils :refer [divide-hub]]))
+            [discord-qc.discord.interactions.utils :refer [divide-hub get-tags-from-custom-id]]))
 
 (defn get-custom-id-type [custom-id]
   (-> custom-id
@@ -92,15 +92,16 @@
   [interaction]
   (let [guild-id (:guild-id interaction)
         user-id (s/select-first [:member :user :id] interaction)
-        custom-id-fields (-> interaction
-                           (get-in [:data :custom-id])
-                           (string/split #"/"))
-        game-mode (-> custom-id-fields
+        custom-id (get-in interaction [:data :custom-id])
+        custom-id-tags (get-tags-from-custom-id custom-id)
+        game-mode (-> custom-id
+                    (string/split #"/")
                     (second)
                     (#(get (set/map-invert elo/mode-names) %)))
 
-        ignored-players (set (drop 2 custom-id-fields))] 
-      (srsp/update-message (divide-hub guild-id user-id game-mode ignored-players))))
+        ignored-players (get custom-id-tags "out")
+        quake-names (get custom-id-tags "in")] 
+      (srsp/update-message (divide-hub guild-id user-id game-mode quake-names ignored-players))))
 
 
 (defn component-interaction [interaction]
@@ -110,4 +111,3 @@
     (when (= original-author-id interactor-id)      
       (let [{:keys [type data]} (handle-component-interaction interaction)]
           @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))))
-

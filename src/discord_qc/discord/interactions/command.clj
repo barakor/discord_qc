@@ -122,9 +122,13 @@
                              (map clean-user-id!)
                              (map db/discord-id->quake-name)
                              (filter some?)
-                             (set))]
+                             (set))
 
-    (srsp/channel-message (divide-hub guild-id user-id game-mode ignored-players))))
+        quake-names (->> (get-keys-starting-with interaction-options "quake-name")
+                      (vals)
+                      (map lower-case))]
+
+    (srsp/channel-message (divide-hub guild-id user-id game-mode quake-names ignored-players))))
 
 
 ;; Admin commands

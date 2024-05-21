@@ -16,6 +16,26 @@
 ; (use 'debux.core)
 
 
+(defn tag-custom-id [custom-key values]
+   (map #(str ":" custom-key ":" %) values))
+
+
+(defn create-custom-id [values]
+  (string/join "/" values))
+
+
+(defn get-tags-from-custom-id [input]
+  (let [sections (string/split input #"/")
+        get-kv! (fn [section] 
+                  (let [parts (string/split section #":")]
+                    (if (not-empty (first parts))
+                      {(first parts) #{(first parts)}}
+                      {(second parts) #{(string/join ":" (drop 2 parts))}})))]
+                    
+    (apply merge-with into (map get-kv! sections))))
+
+
+
 (defn map-command-interaction-options [interaction]
   (into {} (map #(hash-map (:name %) (:value %)) (get-in interaction [:data :options]))))  
 
@@ -35,7 +55,7 @@
     (into {})))
 
 
-(defn divide-hub [guild-id user-id game-mode ignored-players]
+(defn divide-hub [guild-id user-id game-mode quake-names ignored-players]
   (let [voice-channel-id (user-in-voice-channel? user-id)
         voice-channel-members (get-voice-channel-members voice-channel-id)
         lobbies-names (get-sibling-voice-channels-names guild-id voice-channel-id)
@@ -48,13 +68,17 @@
         players (->> found-players
                   (vals)
                   (map :quake-name)
-                  (filter #(not (contains? ignored-players %))))
+                  (filter #(not (contains? ignored-players %)))
+                  (concat quake-names)
+                  (set))
        
         unregistered-users (s/select [s/MAP-VALS #(= (:registered %) false) :quake-name] found-players)
         
         components (build-components-action-rows
                      [(scomp/button :success  
-                                    (string/join "/" (into ["reshuffle!" (name game-mode)] ignored-players))
+                                    (create-custom-id (into ["reshuffle!" (name game-mode)] 
+                                                        (concat (tag-custom-id "out" ignored-players)
+                                                                (tag-custom-id "in" quake-names))))
                                     :label "Reshuffle!")])
         content    (string/join "\n"
                      [(when (not-empty unregistered-users) 
