@@ -25,7 +25,9 @@
 
 
 (defn elo-map->embed [elo-map]
-  (let [format-map-entry #(hash-map :name ((first %) elo/mode-names) :value (str (format "%.3f" (second %))))]
+  (let [format-map-entry (fn [[game-mode mode-score]] (hash-map :name (game-mode elo/mode-names) 
+                                                                :value (str (format "%.3f" (double mode-score)))))]
+    (println elo-map)
     [{:type "rich" :title "Quake ELO for:" :description (:quake-name elo-map) :color 9896156
       :fields (concat
                 (map format-map-entry (select-keys elo-map (keys elo/mode-names))))}]))
