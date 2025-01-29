@@ -1,10 +1,10 @@
-(ns discord-qc.storage.rocksdb 
+(ns discord-qc.storage.rocksdb
   (:require
-       [byte-streams :as bs]
-       [taoensso.nippy :refer [freeze thaw]]
-       [clojure.edn :as edn]
+   [byte-streams :as bs]
+   [taoensso.nippy :refer [freeze thaw]]
+   [clojure.edn :as edn]
 
-       [taoensso.timbre :as timbre :refer [log]])
+   [taoensso.timbre :as timbre :refer [log]])
   (:import [org.rocksdb RocksDB]
            [org.rocksdb Options]))
 
@@ -17,10 +17,10 @@
 
 
 (defn- rocksdb-deserialize-value-bs [value]
-   (when-let [val (bs/to-string value)]
-     (try 
-       (edn/read-string val)
-       (catch Exception _ val))))
+  (when-let [val (bs/to-string value)]
+    (try
+      (edn/read-string val)
+      (catch Exception _ val))))
 
 
 (defn- rocksdb-serialize-value [value]
@@ -28,9 +28,9 @@
 
 
 (defn- rocksdb-deserialize-value [value]
-   (try 
-     (thaw value)
-     (catch Exception _ nil)))
+  (try
+    (thaw value)
+    (catch Exception _ nil)))
 
 
 (defn put-record! [k v]
@@ -43,14 +43,14 @@
   (when-let [db @db*]
 
     (if-let [record (some->> k
-                      (rocksdb-serialize-value)
-                      (.get db)
-                      (rocksdb-deserialize-value))]
+                             (rocksdb-serialize-value)
+                             (.get db)
+                             (rocksdb-deserialize-value))]
       record
       (some->> k
-        (rocksdb-serialize-value-bs)
-        (.get db)
-        (rocksdb-deserialize-value-bs)))))
+               (rocksdb-serialize-value-bs)
+               (.get db)
+               (rocksdb-deserialize-value-bs)))))
 
 
 (defn stop! []
@@ -64,8 +64,12 @@
     (stop!))
 
   (let [opts (-> (Options.)
-               (.setCreateIfMissing true)
-               (.setErrorIfExists   false))]
+                 (.setCreateIfMissing true)
+                 (.setErrorIfExists false)
+                 (.setInfoLogLevel org.rocksdb.InfoLogLevel/WARN)
+                 (.setKeepLogFileNum 1)
+                 (.setWalDisabled true)  ;; Disable WAL if not needed
+                 (.setDeleteObsoleteFilesPeriodMicros (* 60 1000000)))]
 
     (reset! db* (RocksDB/open opts db-path))
     (log :info "[storage.rocksdb]: started " db-path)))
