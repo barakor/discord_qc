@@ -1,8 +1,6 @@
 (ns discord-qc.elo
-    (:require 
-            [discord-qc.handle-db :as db]
-            [discord-qc.quake-stats :as quake-stats]))
-            
+  (:require
+   [discord-qc.handle-db :as db]))
 
 (def mode-names {:sacrifice "sacrifice"
                  :sacrifice-tournament "sacrifice-tournament"
@@ -16,15 +14,9 @@
                  :killing "killing"
                  :objective "objective"})
 
-
-(defn quake-name->elo-map [quake-name]
-  (try
-    (or (db/quake-name->elo-map quake-name)
-        (quake-stats/quake-name->elo-map quake-name))
-    (catch Exception _ (quake-stats/get-empty-elo-map quake-name))))
-
-
-(defn quake-name->mode-elo [quake-name mode]
-  (let [elo-map (quake-name->elo-map quake-name)]
-    (mode elo-map)))
-
+(defn create-elo-map [quake-name score]
+  (->> mode-names
+       (keys)
+       (map #(hash-map % score))
+       (into {})
+       (#(assoc % :quake-name quake-name))))

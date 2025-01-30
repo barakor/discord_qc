@@ -48,7 +48,7 @@
 
 
 (defn get-user-quake-name [guild-id user-id]
-  (if-let [quake-name (db/discord-id->quake-name user-id)]
+  (if-let [quake-name (:quake-name (db/discord-id->elo-map user-id))]
     quake-name
     (get-user-display-name guild-id user-id))) 
 
@@ -102,7 +102,7 @@
 
 (defn balance-teams-embed [game-mode players]
   (let [players-elo-map (->> players
-                          (map elo/quake-name->elo-map)
+                          (map db/discord-id->elo-map)
                           (map #(hash-map (:quake-name %) (get % game-mode 0)))
                           (apply merge))
         balanced-team-options (take 3 (balancing/weighted-allocation players-elo-map))
@@ -132,7 +132,7 @@
   (let [team-sizes (balancing/division-into-lobbies-opt (count players))
         lobby-balance! (fn [players] (some->> players
                                        (not-empty)
-                                       (map elo/quake-name->elo-map)
+                                       (map db/discord-id->elo-map)
                                        (map #(hash-map (:quake-name %) (get % game-mode 0)))
                                        (apply merge)
                                        (balancing/hybrid-draft-weighted-allocation)
