@@ -19,3 +19,4 @@ secret.edn
 rocksdb_backup
 /new-rocksdb
 /.calva
+*.sublime-*

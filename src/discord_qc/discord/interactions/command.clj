@@ -9,6 +9,8 @@
 
             [com.rpl.specter :as s]
 
+            [taoensso.timbre :as timbre :refer [log]]
+
             [discord-qc.state :refer [state* discord-state*]]
             [discord-qc.elo :as elo]
             [discord-qc.handle-db :as db]
@@ -19,26 +21,28 @@
                                               get-user-display-name]]
             [discord-qc.discord.commands :refer [admin-commands]]
             [discord-qc.discord.interactions.utils :refer [map-command-interaction-options
-                                                           find-registered-users
-                                                           find-unregistered-users
                                                            divide-hub]]))
 
 (defn elo-map->embed [elo-map]
   (let [format-map-entry (fn [[game-mode mode-score]] (hash-map :name (game-mode elo/mode-names)
                                                                 :value (str (format "%.3f" (double mode-score)))))]
-    (println elo-map)
     [{:type "rich" :title "Quake ELO for:" :description (:quake-name elo-map) :color 9896156
       :fields (concat
                (map format-map-entry (select-keys elo-map (keys elo/mode-names))))}]))
+
+(defn clean-user-id [user-id]
+  (->> user-id
+       (filter #(not (contains? #{\@ \> \<} %)))
+       (apply str)))
 
 ;; Command interactions
 (defmulti handle-command-interaction
   (fn [interaction] (get-in interaction [:data :name])))
 
 (defmethod handle-command-interaction "query" [interaction]
-  (let [discord-id (lower-case (get (map-command-interaction-options interaction) "discord-id"))]
+  (let [discord-id (clean-user-id (get (map-command-interaction-options interaction) "discord-id"))]
 
-    (if-let [elo (db/discord-id->elo-map discord-id)]
+    (if-let [elo (elo/discord-id->Elo discord-id)]
       (do
         (srsp/update-message {:content "" :embeds (elo-map->embed elo)}))
       (srsp/update-message {:content (str "couldn't find data for user")}))))
@@ -46,51 +50,49 @@
 (defmethod handle-command-interaction "rename" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
         discord-id (s/select-first [:member :user :id] interaction)
-        quake-name (lower-case (get interaction-options "quake-name"))]
+        quake-name (get interaction-options "quake-name")]
 
-    (if-let [elo (db/discord-id->elo-map discord-id)]
+    (if-let [elo (elo/discord-id->Elo discord-id)]
       (do
         (let [new-elo (assoc elo :quake-name quake-name)]
-          (db/save-discord-id->elo-map discord-id new-elo)
+          (elo/save-discord-id->Elo discord-id new-elo)
           (srsp/update-message {:content "" :embeds (elo-map->embed new-elo)})))
       (srsp/update-message {:content (str "couldn't find user")}))))
 
 (defmethod handle-command-interaction "balance" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
         game-mode (get interaction-options "game-mode")
-        quake-names (->> (get-keys-starting-with interaction-options "quake-name")
-                         (vals)
-                         (map lower-case))
-        guild-id (:guild-id interaction)
-        user-id (s/select-first [:member :user :id] interaction)
+        manual-entries (->> (get-keys-starting-with interaction-options "player-tag")
+                            (vals)
+                            (map clean-user-id))
 
-        voice-channel-id (user-in-voice-channel? user-id)
+        guild-id (:guild-id interaction)
+        interactor-id (s/select-first [:member :user :id] interaction)
+
+        voice-channel-id (user-in-voice-channel? interactor-id)
         voice-channel-members (get-voice-channel-members voice-channel-id)
 
-        find-unregistered-users (partial find-unregistered-users guild-id)
-        found-players (->> voice-channel-members
-                           (find-registered-users)
-                           (find-unregistered-users))
+        found-players (into #{} (concat manual-entries voice-channel-members))
 
-        unregistered-users (s/select [s/MAP-VALS #(= (:registered %) false) :quake-name] found-players)
+        elos (map #(assoc (elo/discord-id->Elo %) :discord-id %) found-players)
+
+        unregistered-users (s/select [s/ALL #(not (:quake-name %)) :discord-id] elos)
+        unregistered-users-names (into {} (map #(hash-map % (get-user-display-name guild-id %)) unregistered-users))
 
         component-id (atom 0)
 
-        quake-name-button (fn [quake-name] (scomp/button :secondary
-                                                         (str "toggle-primary-secondary/" (str "toggle-primary-secondary/" (swap! component-id inc)))
-                                                         :label quake-name))
+        quake-name-button (fn [elo] (let [discord-id (:discord-id elo)]
+                                     (scomp/button :secondary
+                                                   (str "toggle-primary-secondary/" discord-id)
+                                                   :label (get elo :quake-name (get unregistered-users-names discord-id)))))
         components (build-components-action-rows
                     (concat
-                     (->> found-players
-                          (vals)
-                          (map :quake-name)
-                          (map quake-name-button))
-                     (map quake-name-button quake-names)
+                     (map quake-name-button elos)
                      [(scomp/button :danger  "select-all-primary-secondary" :label "Select All")
                       (scomp/button :success  (str "balance!/" game-mode) :label "Balance!")]))
         content (string/join "\n"
-                             [(when (not-empty unregistered-users)
-                                (str "Unregistered Users: " (string/join ", " unregistered-users)))
+                             [(when (not-empty unregistered-users-names)
+                                (str "Unregistered Users: " (string/join ", " (vals unregistered-users-names))))
                               (str "Balancing for " game-mode)])]
     (srsp/channel-message {:content content :components components})))
 
@@ -100,18 +102,16 @@
         user-id (s/select-first [:member :user :id] interaction)
         game-mode (get (set/map-invert elo/mode-names) (get interaction-options "game-mode"))
 
-        clean-user-id! (fn [user-id] (apply str (filter #(not (contains? #{\@ \> \<} %)) user-id)))
-
-        ignored-players (->> (get-keys-starting-with interaction-options "discord-tag")
+        ignored-players (->> (get-keys-starting-with interaction-options "spectator-tag")
                              (vals)
-                             (map clean-user-id!)
+                             (map clean-user-id)
                              (map db/discord-id->quake-name)
                              (filter some?)
                              (set))
 
-        quake-names (->> (get-keys-starting-with interaction-options "quake-name")
+        quake-names (->> (get-keys-starting-with interaction-options "player-tag")
                          (vals)
-                         (map lower-case))]
+                         (map clean-user-id))]
 
     (srsp/channel-message (divide-hub guild-id user-id game-mode quake-names ignored-players))))
 
@@ -119,41 +119,41 @@
 
 (defmethod handle-command-interaction "register" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
-        discord-id (lower-case (get interaction-options "discord-id"))
-        quake-name (lower-case (get interaction-options "quake-name"))
+        discord-id (clean-user-id (get interaction-options "discord-id"))
+        quake-name (get interaction-options "quake-name")
         score (get interaction-options "score")]
 
     (let [elo-map (elo/create-elo-map quake-name score)]
-      (db/save-discord-id->elo-map discord-id elo-map)
+      (elo/save-discord-id->Elo discord-id elo-map)
       (srsp/update-message {:content "" :embeds (elo-map->embed elo-map)}))))
 
 (defmethod handle-command-interaction "rename-other" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
-        discord-id (lower-case (get interaction-options "discord-id"))
-        quake-name (lower-case (get interaction-options "quake-name"))]
+        discord-id (clean-user-id (get interaction-options "discord-id"))
+        quake-name (get interaction-options "quake-name")]
 
-    (if-let [elo (db/discord-id->elo-map discord-id)]
+    (if-let [elo (elo/discord-id->Elo discord-id)]
       (do
         (let [new-elo (assoc elo :quake-name quake-name)]
-          (db/save-discord-id->elo-map discord-id new-elo)
+          (elo/save-discord-id->Elo discord-id new-elo)
           (srsp/update-message {:content "" :embeds (elo-map->embed new-elo)})))
       (srsp/update-message {:content (str "couldn't find user")}))))
 
 (defmethod handle-command-interaction "adjust" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
-        discord-id (lower-case (get interaction-options "discord-id"))
+        discord-id (clean-user-id (get interaction-options "discord-id"))
         mode (get (set/map-invert elo/mode-names) (get interaction-options "game-mode"))
         score (get interaction-options "score")]
 
-    (if-let [elo (db/discord-id->elo-map discord-id)]
+    (if-let [elo (elo/discord-id->Elo discord-id)]
       (do
         (let [new-elo (assoc elo mode score)]
-          (db/save-discord-id->elo-map discord-id new-elo)
+          (elo/save-discord-id->Elo discord-id new-elo)
           (srsp/update-message {:content "" :embeds (elo-map->embed new-elo)})))
       (srsp/update-message {:content (str "couldn't find user")}))))
 
 (defmethod handle-command-interaction "db-stats" [interaction]
-  (let [players-registered @db/all-discord-ids-in-db
+  (let [players-registered @db/all-discord-ids-in-db*
         db-stats-message (string/join "\n"
                                       [(str "\\# Of players registered in db: " (count players-registered))])]
 
@@ -162,8 +162,9 @@
 (defonce ^:private admin-only-commands (set (map :name admin-commands)))
 
 (defn execute-interaction [interaction]
-  (let [{:keys [type data]} (handle-command-interaction interaction)]
-    @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)))
+  (let [{:keys [type data]} (handle-command-interaction interaction)
+        edit-response @(discord-rest/edit-original-interaction-response! (:rest @state*) (:application-id interaction) (:token interaction) data)]
+    (log :debug edit-response)))
 
 (defn command-interaction [interaction]
   @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-channel-message))
@@ -173,12 +174,10 @@
       (not (contains? admin-only-commands command-interaction-name)) (execute-interaction interaction)
 
       (and (contains? admin-only-commands command-interaction-name)
-           (contains? @db/admin-ids interactor-id))
+           (contains? @db/admin-ids* interactor-id))
       (execute-interaction interaction)
 
-      :else (let [unauthorized-message (srsp/channel-message {:content "You are not authorized to use this command"})]
-
-              @(discord-rest/edit-original-interaction-response! (:rest @state*)
-                                                                 (:application-id interaction)
-                                                                 (:token interaction)
-                                                                 unauthorized-message)))))
+      :else @(discord-rest/edit-original-interaction-response! (:rest @state*)
+                                                               (:application-id interaction)
+                                                               (:token interaction)
+                                                               {:content "You are not authorized to use this command"}))))
