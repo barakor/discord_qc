@@ -106,6 +106,6 @@
 
 (def application-commands [rename-command query-command balance-command divide-command])
 
-(def admin-commands [db-stats-command register-command adjust-command rename-other])
+(def admin-commands [db-stats-command register-command adjust-command rename-other-command])
                      ; refresh-db-command 
 
