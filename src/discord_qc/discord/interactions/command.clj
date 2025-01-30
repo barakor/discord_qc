@@ -50,7 +50,7 @@
 
     (if-let [elo (db/discord-id->elo-map discord-id)]
       (do
-        (let [new-elo (assoc elo :quake-name score)]
+        (let [new-elo (assoc elo :quake-name quake-name)]
           (db/save-discord-id->elo-map discord-id new-elo)
           (srsp/update-message {:content "" :embeds (elo-map->embed new-elo)})))
       (srsp/update-message {:content (str "couldn't find user")}))))
@@ -134,7 +134,7 @@
 
     (if-let [elo (db/discord-id->elo-map discord-id)]
       (do
-        (let [new-elo (assoc elo :quake-name score)]
+        (let [new-elo (assoc elo :quake-name quake-name)]
           (db/save-discord-id->elo-map discord-id new-elo)
           (srsp/update-message {:content "" :embeds (elo-map->embed new-elo)})))
       (srsp/update-message {:content (str "couldn't find user")}))))

@@ -18,3 +18,4 @@ pom.xml.asc
 secret.edn
 rocksdb_backup
 /new-rocksdb
+/.calva
