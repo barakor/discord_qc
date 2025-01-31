@@ -6,86 +6,88 @@
 
             [slash.component.structure :as scomp]
 
-            [discord-qc.handle-db :as db]
-            [discord-qc.discord.utils :refer [get-voice-channel-members 
-                                              user-in-voice-channel? 
-                                              build-components-action-rows 
+            [discord-qc.elo :as elo]
+            [discord-qc.discord.utils :refer [get-voice-channel-members
+                                              user-in-voice-channel?
+                                              build-components-action-rows
                                               get-user-display-name
                                               get-sibling-voice-channels-names
                                               divide-hub-embed]]))
 ; (use 'debux.core)
+(def base-chars "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz<.>?;\"'[{]}!@#$%^&*()-_")
 
+(defn encode-base [n]
+  (let [base (count base-chars)
+        n (str n)]
+    (loop [num (Long/parseLong n)
+           result ""]
+      (if (zero? num)
+        (if (empty? result) "0" result)
+        (recur (quot num base)
+               (str (nth base-chars (mod num base)) result))))))
+
+(defn decode-base [s]
+  (let [base (count base-chars)]
+    (reduce (fn [acc char]
+              (+ (* acc base) (string/index-of base-chars char)))
+            0
+            s)))
 
 (defn tag-custom-id [custom-key values]
-   (map #(str ":" custom-key ":" %) values))
-
+  (map #(str ":" custom-key ":" (encode-base %)) values))
 
 (defn create-custom-id [values]
   (string/join "/" values))
 
-
 (defn get-tags-from-custom-id [input]
   (let [sections (string/split input #"/")
-        get-kv! (fn [section] 
+        get-kv! (fn [section]
                   (let [parts (string/split section #":")]
                     (if (not-empty (first parts))
                       {(first parts) #{(first parts)}}
                       {(second parts) #{(string/join ":" (drop 2 parts))}})))]
-                    
+
     (apply merge-with into (map get-kv! sections))))
 
-
+(defn get-tag-from-custom-id-tags [custom-id-tags tag]
+  (set (map decode-base (get custom-id-tags tag))))
 
 (defn map-command-interaction-options [interaction]
-  (into {} (map #(hash-map (:name %) (:value %)) (get-in interaction [:data :options]))))  
+  (into {} (map #(hash-map (:name %) (:value %)) (get-in interaction [:data :options]))))
 
-
-(defn find-registered-users [user-ids]
-  (->> user-ids
-    (map #(hash-map % (when-let [quake-name (db/discord-id->quake-name %)] 
-                        {:quake-name quake-name :registered true}))) 
-    (apply merge)))
-
-
-(defn find-unregistered-users [guild-id users]
-  (->> users 
-    (map #(if (nil? (second %))
-            (hash-map (first %) {:quake-name (get-user-display-name guild-id (first %)) :registered false})
-            %))
-    (into {})))
-
-
-(defn divide-hub [guild-id user-id game-mode quake-names ignored-players]
+(defn divide-hub [guild-id user-id game-mode manual-entries ignored-players]
   (let [voice-channel-id (user-in-voice-channel? user-id)
-        voice-channel-members (get-voice-channel-members voice-channel-id)
         lobbies-names (get-sibling-voice-channels-names guild-id voice-channel-id)
+        voice-channel-members (get-voice-channel-members voice-channel-id)
 
-        find-unregistered-users (partial find-unregistered-users guild-id)
-        found-players (->> voice-channel-members
-                        (find-registered-users)
-                        (find-unregistered-users))
+        active-players (->> (concat manual-entries voice-channel-members)
+                            (filter #(not (contains? ignored-players %)))
+                            (into #{}))
 
-        players (->> found-players
-                  (vals)
-                  (map :quake-name)
-                  (filter #(not (contains? ignored-players %)))
-                  (concat quake-names)
-                  (set))
-       
-        unregistered-users (s/select [s/MAP-VALS #(= (:registered %) false) :quake-name] found-players)
-        
+        elos (map #(assoc (elo/discord-id->Elo %) :discord-id %) active-players)
+
+        unregistered-users (s/select [s/ALL #(not (:quake-name %)) :discord-id] elos)
+        unregistered-users-names (into {} (map #(hash-map % (get-user-display-name guild-id %)) unregistered-users))
+
+        reshuffle-gen-id (create-custom-id (into ["reshuffle!" (name game-mode)]
+                                                 (concat (tag-custom-id "o" ignored-players)
+                                                         (tag-custom-id "i" manual-entries))))
         components (build-components-action-rows
-                     [(scomp/button :success  
-                                    (create-custom-id (into ["reshuffle!" (name game-mode)] 
-                                                        (concat (tag-custom-id "out" ignored-players)
-                                                                (tag-custom-id "in" quake-names))))
-                                    :label "Reshuffle!")])
+                    [(scomp/button :success
+                                   (if (< (count reshuffle-gen-id) 100)
+                                     reshuffle-gen-id
+                                     (create-custom-id ["reshuffle!" (name game-mode)]))
+                                   :label "Reshuffle!")]) ;;;;;;; TODO: MAKE THIS SHORTER
         content    (string/join "\n"
-                     [(when (not-empty unregistered-users) 
-                         (str "Unregistered Users: " (string/join ", " unregistered-users)))
-                      (str "Balancing for " (name game-mode))
-                      (str "Found " (count players) " players")])]
+                                (filter some?
+                                        [(when (not-empty unregistered-users)
+                                           (str "Unregistered Users: " (string/join ", " unregistered-users)))
+                                         (str "Balancing for " (name game-mode))
+                                         (str "Found " (count elos) " players")
+                                         (when (<= (count elos) 3)
+                                           "Not Enough players to divide into teams")]))
 
-    (if (<= (count players) 3)
-      {:content (str content "\n" "Not Enough players to divide into teams") :components components}
-      {:content content :embeds (divide-hub-embed game-mode players lobbies-names ignored-players) :components components})))
+        embeds     (if (> (count elos) 3)
+                     (divide-hub-embed game-mode elos lobbies-names ignored-players)
+                     [])]
+    {:content content :embeds embeds :components components}))

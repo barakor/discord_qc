@@ -91,18 +91,11 @@
     (scs/option "spectator-tag2" "Manually tag discord user as a spectator" :string)
     (scs/option "spectator-tag3" "Manually tag discord user as a spectator" :string)
     (scs/option "spectator-tag4" "Manually tag discord user as a spectator" :string)
-    (scs/option "spectator-tag5" "Manually tag discord user as a spectator" :string)
-    (scs/option "spectator-tag6" "Manually tag discord user as a spectator" :string)
-    (scs/option "spectator-tag7" "Manually tag discord user as a spectator" :string)
-    (scs/option "spectator-tag8" "Manually tag discord user as a spectator" :string)
     (scs/option "player-tag1" "Manually add tagged discord user to lobby" :string)
     (scs/option "player-tag2" "Manually add tagged discord user to lobby" :string)
     (scs/option "player-tag3" "Manually add tagged discord user to lobby" :string)
-    (scs/option "player-tag4" "Manually add tagged discord user to lobby" :string)
-    (scs/option "player-tag5" "Manually add tagged discord user to lobby" :string)
-    (scs/option "player-tag6" "Manually add tagged discord user to lobby" :string)
-    (scs/option "player-tag7" "Manually add tagged discord user to lobby" :string)
-    (scs/option "player-tag8" "Manually add tagged discord user to lobby" :string)]))
+    (scs/option "player-tag4" "Manually add tagged discord user to lobby" :string)]))
+    
 
 (def application-commands [rename-command query-command balance-command divide-command])
 

@@ -12,7 +12,7 @@
             [discord-qc.state :refer [state*]]
             [discord-qc.elo :as elo]
             [discord-qc.discord.utils :refer [build-components-action-rows balance-teams-embed]]
-            [discord-qc.discord.interactions.utils :refer [divide-hub get-tags-from-custom-id]]))
+            [discord-qc.discord.interactions.utils :refer [divide-hub get-tags-from-custom-id get-tag-from-custom-id-tags]]))
 
 (defn get-custom-id [custom-id]
   (-> custom-id
@@ -112,10 +112,11 @@
                       (second)
                       (#(get (set/map-invert elo/mode-names) %)))
 
-        ignored-players (get custom-id-tags "out")
-        quake-names (get custom-id-tags "in")]
-    (srsp/update-message (divide-hub guild-id user-id game-mode quake-names ignored-players))))
+        ignored-players (get-tag-from-custom-id-tags custom-id-tags "o")
+        manual-entries (get-tag-from-custom-id-tags custom-id-tags "i")]
+    (srsp/update-message (divide-hub guild-id user-id game-mode manual-entries ignored-players))))
 
+ 
 (defn component-interaction [interaction]
   @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-update-message))
   (let [original-author-id (get-in interaction [:message :interaction :user :id])

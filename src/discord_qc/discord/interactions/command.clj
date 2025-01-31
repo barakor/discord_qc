@@ -18,7 +18,8 @@
             [discord-qc.discord.utils :refer [get-voice-channel-members
                                               user-in-voice-channel?
                                               build-components-action-rows
-                                              get-user-display-name]]
+                                              get-user-display-name
+                                              divide-hub-embed]]
             [discord-qc.discord.commands :refer [admin-commands]]
             [discord-qc.discord.interactions.utils :refer [map-command-interaction-options
                                                            divide-hub]]))
@@ -79,12 +80,10 @@
         unregistered-users (s/select [s/ALL #(not (:quake-name %)) :discord-id] elos)
         unregistered-users-names (into {} (map #(hash-map % (get-user-display-name guild-id %)) unregistered-users))
 
-        component-id (atom 0)
-
         quake-name-button (fn [elo] (let [discord-id (:discord-id elo)]
-                                     (scomp/button :secondary
-                                                   (str "toggle-primary-secondary/" discord-id)
-                                                   :label (get elo :quake-name (get unregistered-users-names discord-id)))))
+                                      (scomp/button :secondary
+                                                    (str "toggle-primary-secondary/" discord-id)
+                                                    :label (get elo :quake-name (get unregistered-users-names discord-id)))))
         components (build-components-action-rows
                     (concat
                      (map quake-name-button elos)
@@ -105,15 +104,14 @@
         ignored-players (->> (get-keys-starting-with interaction-options "spectator-tag")
                              (vals)
                              (map clean-user-id)
-                             (map db/discord-id->quake-name)
-                             (filter some?)
                              (set))
 
-        quake-names (->> (get-keys-starting-with interaction-options "player-tag")
-                         (vals)
-                         (map clean-user-id))]
+        manual-entries (->> (get-keys-starting-with interaction-options "player-tag")
+                            (vals)
+                            (map clean-user-id)
+                            (set))]
 
-    (srsp/channel-message (divide-hub guild-id user-id game-mode quake-names ignored-players))))
+    (srsp/channel-message (divide-hub guild-id user-id game-mode manual-entries ignored-players))))
 
 ;; Admin commands
 

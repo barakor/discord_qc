@@ -49,8 +49,3 @@
 
             embed-msg (balance-teams-embed game-mode elo-maps)]
         (discord-rest/create-message! (:rest @state*) channel-id :message-reference {:message-id msg-id "message_id" msg-id} :embeds embed-msg)))))
-
-(let [msg-id "1334615482816401501"
-      guild-id "609603874474426372"
-      channel-id "613557878330228736"]
-  (def x @(discord-rest/get-channel-message! (:rest @state*) channel-id msg-id)))

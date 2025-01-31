@@ -117,18 +117,16 @@
                                      (map #(str (first %) ": " (format "%.3f" (second %)))
                                           players-elo-map))}])}]))
 
-(defn divide-hub-embed [game-mode players lobbies-names spectators]
-  (let [team-sizes (balancing/division-into-lobbies-opt (count players))
-        lobby-balance! (fn [players] (some->> players
-                                              (not-empty)
-                                              (map db/discord-id->elo-map)
-                                              (map #(hash-map (:quake-name %) (get % game-mode 0)))
-                                              (apply merge)
-                                              (balancing/hybrid-draft-weighted-allocation)
-                                              (first)))
+(defn divide-hub-embed [game-mode elos lobbies-names spectators]
+  (let [team-sizes (balancing/division-into-lobbies-opt (count elos))
+        lobby-balance! (fn [elos] (some->> elos
+                                           (map #(hash-map (:quake-name %) (get % game-mode 0.0)))
+                                           (apply merge)
+                                           (balancing/hybrid-draft-weighted-allocation)
+                                           (first)))
 
-        shuffled-players (shuffle players)
-        spectators (if (= (rem (count players) 2) 1)
+        shuffled-players (shuffle elos)
+        spectators (if (= (rem (count elos) 2) 1)
                      (conj spectators (last shuffled-players))
                      spectators)
 
