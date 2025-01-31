@@ -14,6 +14,7 @@
             [discord-qc.state :refer [state* discord-state*]]
             [discord-qc.elo :as elo]
             [discord-qc.handle-db :as db]
+            [discord-qc.handle-gh :as gh]
             [discord-qc.utils :refer [get-keys-starting-with]]
             [discord-qc.discord.utils :refer [get-voice-channel-members
                                               user-in-voice-channel?
@@ -176,7 +177,7 @@
 (defmethod handle-command-interaction "backup-db" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)
         db-edn (db/db->edn)]
-    
+    (gh/update-db-file db-edn)
     (srsp/channel-message {:content "https://raw.githubusercontent.com/barakor/discord_qc/db-data/db-data.edn"})))
 
 (defonce ^:private admin-only-commands (set (map :name admin-commands)))
