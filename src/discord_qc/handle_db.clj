@@ -11,7 +11,9 @@
 
 (defn refresh-db-from-gihub []
   (let [db-data-from-github (edn/read-string (slurp "https://raw.githubusercontent.com/barakor/discord_qc/db-data/db-data.edn"))]
-    (doall (map (fn [[k v]] (rocksdb/put-record! k v)) db-data-from-github))))
+    (doall (map (fn [[k v]] (rocksdb/put-record! k v)) db-data-from-github))
+    (reset! all-discord-ids-in-db* (rocksdb/get-record "all-discord-ids-in-db"))
+    (reset! admin-ids* (rocksdb/get-record "admin-ids"))))
 
 (defn get-db-map []
   (rocksdb/get-db-map))
