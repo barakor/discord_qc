@@ -64,4 +64,4 @@
     (reset! db* (RocksDB/open opts db-path))
     (log :info "[storage.rocksdb]: started " db-path)))
 
-(start! {:db-path "./new-rocksdb"})
+(start! {:db-path "/tmp/rocksdb"})
