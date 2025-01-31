@@ -180,6 +180,11 @@
     (gh/update-db-file db-edn)
     (srsp/channel-message {:content "https://raw.githubusercontent.com/barakor/discord_qc/db-data/db-data.edn"})))
 
+(defmethod handle-command-interaction "restore-db-backup" [interaction]
+  (let [interaction-options (map-command-interaction-options interaction)]
+    (db/refresh-db-from-gihub)
+    (srsp/channel-message {:content "DB restored from backup"})))
+
 (defonce ^:private admin-only-commands (set (map :name admin-commands)))
 
 (defonce ^:private owner-only-commands (set (map :name owner-commands)))

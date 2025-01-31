@@ -113,6 +113,11 @@
    "backup-db"
    "Backup DB to github"))
 
+(def restore-db-backup-command
+  (scs/command
+   "restore-db-backup"
+   "Restore DB from github"))
+
 (def application-commands [rename-command query-command balance-command divide-command])
 
 (def admin-commands [db-stats-command
@@ -121,8 +126,8 @@
                      rename-other-command
                      list-admins-command])
 
-
-(def owner-commands [backup-db-command])
+(def owner-commands [backup-db-command
+                     restore-db-backup-command])
                      ; make-admin-command]) ;; maybe we'll need it
                      ; refresh-db-command 
 
