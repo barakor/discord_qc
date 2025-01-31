@@ -7,9 +7,12 @@
 
 (defonce state* (atom nil))
 
-(let [token (->> "secret.edn" (slurp) (edn/read-string) (:token))]
+(let [secret (->> "secret.edn" (slurp) (edn/read-string))
+      token (:token secret)
+      gh-token (:gh-pat secret)]
+      
   (def config (-> "config.edn"
                 (slurp)
                 (edn/read-string)
-                (assoc :token token))))
-
+                (assoc :token token)
+                (assoc :gh-pat gh-token))))
