@@ -20,3 +20,4 @@ rocksdb_backup
 /new-rocksdb
 /.calva
 *.sublime-*
+/_data
