@@ -1,8 +1,8 @@
 (ns discord-qc.elo
-    (:require 
-            [discord-qc.handle-db :as db]
-            [discord-qc.quake-stats :as quake-stats]))
-            
+  (:require
+   [discord-qc.handle-db :as db]
+   [clojure.pprint :refer [pprint]]
+   [taoensso.nippy :refer [freeze thaw]]))
 
 (def mode-names {:sacrifice "sacrifice"
                  :sacrifice-tournament "sacrifice-tournament"
@@ -16,15 +16,33 @@
                  :killing "killing"
                  :objective "objective"})
 
+(defrecord Elo [^String quake-name
+                ^Double sacrifice
+                ^Double sacrifice-tournament
+                ^Double ctf
+                ^Double slipgate
+                ^Double tdm
+                ^Double tdm-2v2
+                ^Double ffa
+                ^Double instagib
+                ^Double duel
+                ^Double killing
+                ^Double objective])
 
-(defn quake-name->elo-map [quake-name]
-  (try
-    (or (db/quake-name->elo-map quake-name)
-        (quake-stats/quake-name->elo-map quake-name))
-    (catch Exception _ (quake-stats/get-empty-elo-map quake-name))))
+(defn Elo->map [^Elo elo]
+  (into {} elo))
 
+(defn create-elo-map [quake-name score]
+  (->> mode-names
+       (keys)
+       (map #(hash-map % score))
+       (into {:quake-name quake-name})
+       (map->Elo)))
 
-(defn quake-name->mode-elo [quake-name mode]
-  (let [elo-map (quake-name->elo-map quake-name)]
-    (mode elo-map)))
+(defn discord-id->Elo [^String discord-id]
+  (when-let [elo-map (db/discord-id->elo-map discord-id)]
+    (map->Elo elo-map)))
+
+(defn save-discord-id->Elo [^String discord-id ^Elo elo]
+  (db/save-discord-id->elo-map discord-id (Elo->map elo)))
 
