@@ -20,7 +20,7 @@
                                               build-components-action-rows
                                               get-user-display-name
                                               divide-hub-embed]]
-            [discord-qc.discord.commands :refer [admin-commands]]
+            [discord-qc.discord.commands :refer [application-commands admin-commands owner-commands]]
             [discord-qc.discord.interactions.utils :refer [map-command-interaction-options
                                                            divide-hub]]))
 
@@ -157,7 +157,33 @@
 
     (srsp/channel-message {:content db-stats-message})))
 
+(defmethod handle-command-interaction "make-admin" [interaction]
+  (let [interaction-options (map-command-interaction-options interaction)
+        discord-id (clean-user-id (get interaction-options "discord-id"))]
+
+    (db/save-admin-id discord-id)
+    (srsp/channel-message {:content (str "User " discord-id " is now an admin")})))
+
+(defmethod handle-command-interaction "list-admins" [interaction]
+  (let [interaction-options (map-command-interaction-options interaction)
+        admin-ids @db/admin-ids*
+        admin-names (->> admin-ids
+                         (map #(deref (discord-rest/get-user! (:rest @state*) %)))
+                         (map #(or (:global-name %) (:username %))))]
+
+    (srsp/channel-message {:content (string/join ", " admin-names)})))
+
+(defmethod handle-command-interaction "backup-db" [interaction]
+  (let [interaction-options (map-command-interaction-options interaction)
+        db-edn (db/db->edn)]
+    
+    (srsp/channel-message {:content "https://raw.githubusercontent.com/barakor/discord_qc/db-data/db-data.edn"})))
+
 (defonce ^:private admin-only-commands (set (map :name admin-commands)))
+
+(defonce ^:private owner-only-commands (set (map :name owner-commands)))
+
+(defonce ^:private application-commands-names (set (map :name application-commands)))
 
 (defn execute-interaction [interaction]
   (let [{:keys [type data]} (handle-command-interaction interaction)
@@ -169,12 +195,18 @@
   (let [command-interaction-name (get-in interaction [:data :name])
         interactor-id (s/select-first [:member :user :id] interaction)]
     (cond
-      (not (contains? admin-only-commands command-interaction-name)) (execute-interaction interaction)
+      ;; owner commands
+      (and (contains? owner-only-commands command-interaction-name)
+           (= "88533822521507840" interactor-id)) (execute-interaction interaction)
 
+      ;; admin commands
       (and (contains? admin-only-commands command-interaction-name)
-           (contains? @db/admin-ids* interactor-id))
-      (execute-interaction interaction)
+           (contains? @db/admin-ids* interactor-id)) (execute-interaction interaction)
 
+      ;; other commands
+      (contains? application-commands-names command-interaction-name) (execute-interaction interaction)
+
+      ;; else fail
       :else @(discord-rest/edit-original-interaction-response! (:rest @state*)
                                                                (:application-id interaction)
                                                                (:token interaction)

@@ -95,10 +95,34 @@
     (scs/option "player-tag2" "Manually add tagged discord user to lobby" :string)
     (scs/option "player-tag3" "Manually add tagged discord user to lobby" :string)
     (scs/option "player-tag4" "Manually add tagged discord user to lobby" :string)]))
-    
+
+(def list-admins-command
+  (scs/command
+   "list-admins"
+   "List all Admins"))
+
+(def make-admin-command
+  (scs/command
+   "make-admin"
+   "Make User an Admin"
+   :options
+   [(scs/option "discord-id" "Tag a discord user" :string :required true)]))
+
+(def backup-db-command
+  (scs/command
+   "backup-db"
+   "Backup DB to github"))
 
 (def application-commands [rename-command query-command balance-command divide-command])
 
-(def admin-commands [db-stats-command register-command adjust-command rename-other-command])
+(def admin-commands [db-stats-command
+                     register-command
+                     adjust-command
+                     rename-other-command
+                     list-admins-command])
+
+
+(def owner-commands [backup-db-command])
+                     ; make-admin-command]) ;; maybe we'll need it
                      ; refresh-db-command 
 

@@ -16,6 +16,17 @@
 (defn get-db-map []
   (rocksdb/get-db-map))
 
+(defn db->edn []
+  (with-out-str (pprint (into (sorted-map) (get-db-map)))))
+
+(defn- write-db-to-file [db-file-path]
+  (with-open [w (writer db-file-path)]
+    (binding [*out* w
+              *print-length* false]
+      (println (db->edn)))))
+
+; (write-db-to-file "db-data.edn")
+
 (defn save-discord-id->elo-map [discord-id elo-map]
   (rocksdb/put-record! (str "discord-id->elo-map/" discord-id) elo-map)
   (when (not (contains? @all-discord-ids-in-db* discord-id))
