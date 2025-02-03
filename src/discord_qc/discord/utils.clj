@@ -92,7 +92,7 @@
 
 (defn balance-teams-embed [game-mode elo-maps]
   (let [players-elo-map (->> elo-maps
-                             (map #(hash-map (:quake-name %) (get % game-mode 0.0)))
+                             (map #(hash-map (:quake-name %) (get % game-mode elo/default-score)))
                              (into {}))
         balanced-team-options (take 3 (balancing/weighted-allocation players-elo-map))
         ; hybrid-team-option (first (balancing/hybrid-draft-weighted-allocation players-elo-map))
@@ -120,7 +120,7 @@
 (defn divide-hub-embed [game-mode elos lobbies-names spectators]
   (let [team-sizes (balancing/division-into-lobbies-opt (count elos))
         lobby-balance! (fn [elos] (some->> elos
-                                           (map #(hash-map (:quake-name %) (get % game-mode 0.0)))
+                                           (map #(hash-map (:quake-name %) (get % game-mode elo/default-score)))
                                            (apply merge)
                                            (balancing/hybrid-draft-weighted-allocation)
                                            (first)))

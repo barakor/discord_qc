@@ -4,6 +4,9 @@
    [clojure.pprint :refer [pprint]]
    [taoensso.nippy :refer [freeze thaw]]))
 
+
+(def default-score 5.0)
+
 (def mode-names {:sacrifice "sacrifice"
                  :sacrifice-tournament "sacrifice-tournament"
                  :ctf "ctf"
