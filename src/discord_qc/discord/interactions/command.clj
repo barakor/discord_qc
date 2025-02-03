@@ -198,22 +198,28 @@
 
 (defn command-interaction [interaction]
   @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-channel-message))
-  (let [command-interaction-name (get-in interaction [:data :name])
-        interactor-id (s/select-first [:member :user :id] interaction)]
-    (cond
-      ;; owner commands
-      (and (contains? owner-only-commands command-interaction-name)
-           (= "88533822521507840" interactor-id)) (execute-interaction interaction)
+  (try
+    (let [command-interaction-name (get-in interaction [:data :name])
+          interactor-id (s/select-first [:member :user :id] interaction)]
+      (cond
+        ;; owner commands
+        (and (contains? owner-only-commands command-interaction-name)
+             (= "88533822521507840" interactor-id)) (execute-interaction interaction)
 
-      ;; admin commands
-      (and (contains? admin-only-commands command-interaction-name)
-           (contains? @db/admin-ids* interactor-id)) (execute-interaction interaction)
+        ;; admin commands
+        (and (contains? admin-only-commands command-interaction-name)
+             (contains? @db/admin-ids* interactor-id)) (execute-interaction interaction)
 
-      ;; other commands
-      (contains? application-commands-names command-interaction-name) (execute-interaction interaction)
+        ;; other commands
+        (contains? application-commands-names command-interaction-name) (execute-interaction interaction)
 
-      ;; else fail
-      :else @(discord-rest/edit-original-interaction-response! (:rest @state*)
-                                                               (:application-id interaction)
-                                                               (:token interaction)
-                                                               {:content "You are not authorized to use this command"}))))
+        ;; else fail
+        :else @(discord-rest/edit-original-interaction-response! (:rest @state*)
+                                                                 (:application-id interaction)
+                                                                 (:token interaction)
+                                                                 {:content "You are not authorized to use this command"})))
+    (catch Exception e (do (log :error e)
+                           (@(discord-rest/edit-original-interaction-response! (:rest @state*)
+                                                                               (:application-id interaction)
+                                                                               (:token interaction)
+                                                                               {:content "Failed to process command"}))))))
