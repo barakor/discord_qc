@@ -17,14 +17,16 @@
 (def base-chars "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz<.>?;\"'[{]}!@#$%^&*()-_")
 
 (defn encode-base [n]
-  (let [base (count base-chars)
-        n (str n)]
-    (loop [num (Long/parseLong n)
-           result ""]
-      (if (zero? num)
-        (if (empty? result) "0" result)
-        (recur (quot num base)
-               (str (nth base-chars (mod num base)) result))))))
+  (if (parse-long (str n))
+    (let [base (count base-chars)
+          n (str n)]
+      (loop [num (parse-long n)
+             result ""]
+        (if (zero? num)
+          (if (empty? result) "0" result)
+          (recur (quot num base)
+                 (str (nth base-chars (mod num base)) result)))))
+    "0"))
 
 (defn decode-base [s]
   (let [base (count base-chars)]
@@ -65,6 +67,7 @@
                             (into #{}))
 
         elos (map #(assoc (elo/discord-id->Elo %) :discord-id %) active-players)
+        spectators (map #(assoc (elo/discord-id->Elo %) :discord-id %) ignored-players)
 
         unregistered-users (s/select [s/ALL #(not (:quake-name %)) :discord-id] elos)
         unregistered-users-names (into {} (map #(hash-map % (get-user-display-name guild-id %)) unregistered-users))
@@ -81,13 +84,13 @@
         content    (string/join "\n"
                                 (filter some?
                                         [(when (not-empty unregistered-users)
-                                           (str "Unregistered Users: " (string/join ", " unregistered-users)))
+                                           (str "Unregistered Users: " (string/join ", " unregistered-users-names)))
                                          (str "Balancing for " (name game-mode))
                                          (str "Found " (count elos) " players")
                                          (when (<= (count elos) 3)
                                            "Not Enough players to divide into teams")]))
 
         embeds     (if (> (count elos) 3)
-                     (divide-hub-embed game-mode elos lobbies-names ignored-players)
+                     (divide-hub-embed game-mode elos lobbies-names spectators)
                      [])]
     {:content content :embeds embeds :components components}))

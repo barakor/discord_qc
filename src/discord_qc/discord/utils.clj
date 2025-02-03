@@ -129,11 +129,12 @@
         spectators (if (= (rem (count elos) 2) 1)
                      (conj spectators (last shuffled-players))
                      spectators)
+        spectators-names (map :quake-name spectators)
 
         lobbies-players (split-into-groups-at shuffled-players team-sizes)
         lobbies (zipmap lobbies-names (map lobby-balance! lobbies-players))
 
-        sepctator-field {:name "Spectators" :value (string/join ", " spectators)}
+        sepctator-field {:name "Spectators" :value (string/join ", " spectators-names)}
 
         fields (map #(format-lobby-players-msg (second %) (first (first %)) (second (first %))) lobbies)
 
