@@ -1,0 +1,12 @@
+
+/.clj-kondo
+.lein-repl-history
+/.calva
+/new-rocksdb
+/target
+*.sublime*
+/.lsp
+secret.edn
+/.shadow-cljs
+/node_modules
+/public/js
