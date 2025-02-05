@@ -7,3 +7,6 @@
 *.sublime*
 /.lsp
 secret.edn
+/.shadow-cljs
+/node_modules
+/public/js
