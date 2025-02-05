@@ -1,0 +1,9 @@
+
+/.clj-kondo
+.lein-repl-history
+/.calva
+/new-rocksdb
+/target
+*.sublime*
+/.lsp
+secret.edn
