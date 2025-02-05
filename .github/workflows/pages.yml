@@ -3,7 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - score-calculator-app  # Change this to your default branch if it's not 'main'
+      - score-calculator-app
+      # - db-data
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,17 +18,17 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v2
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          distribution: "temurin"
+          java-version: "21"
 
       - name: Install Shadow CLJS
         run: npm install
 
       - name: Build the project
-        run: shadow-cljs release app  # Replace 'app' with your build target if different
+        run: shadow-cljs release app
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public/js  # Adjust this path if your output directory is different
+          publish_dir: ./public/js # Adjust this path if your output directory is different
