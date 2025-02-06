@@ -1,5 +1,6 @@
 (ns app.components
   (:require
+   [clojure.string :as string :refer [lower-case starts-with?]]
    [reagent.core :as r :refer [with-let atom]]
    [com.rpl.specter :as s]
    [rewig.components :refer [box row column gap button label input-text dropdown-select]]
@@ -19,6 +20,22 @@
                    :enter! enter!
                    :size [100 16]
                    :change! #(change! %)}]])])
+
+(defn input-field-autocomplete [title value change! & {:keys [enter! options-list] :or {enter! #()}}]
+  (let [options-list-filter (fn [v list] (take 20 (filter #(string/starts-with? (string/lower-case %) (string/lower-case v)) list)))
+        value-options (options-list-filter (or value "") (or options-list []))]
+      [row
+       {}
+       (let [field-id (gensym title)]
+         [[label {} title]
+          [gap :size 8]
+          [input-text {:placeholder title
+                       :value value
+                       :options-list value-options
+                       :type "text"
+                       :enter! enter!
+                       :size [100 16]
+                       :change! #(change! %)}]])]))
 
 (defn on-off-component [available-options selected-options click! {:keys [print!] :or {print! #(get % "name")}}]
   [row {}
