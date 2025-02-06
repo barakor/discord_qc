@@ -34,7 +34,7 @@
                       (s/select [s/MAP-VALS #(map? %) s/MAP-KEYS])
                       (set)
                       (#(set/difference % #{:quake-name})))
-          mode (or @mode* (first modes))
+          mode @mode*
           players  (->> db-data
                         (s/select [s/MAP-VALS #(map? %) :quake-name])
                         (set)
