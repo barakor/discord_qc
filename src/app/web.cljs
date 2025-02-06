@@ -14,11 +14,11 @@
    [rewig.theme.gruvbox :as theme]
    [app.async :refer-macros [let-await]]
    [app.http :refer [http-get]]
-   [app.components :refer [input-field input-field-autocomplete on-off-component on-off-renameable-component chip-component radio-component multi-dropdown-selection rotating-loading]]
+   [app.components :refer [input-field input-field-autocomplete num-field on-off-component on-off-renameable-component chip-component radio-component multi-dropdown-selection rotating-loading]]
    [app.utils :refer [drop-nth symmetric-difference change-idx remove-dups drop-or-add-by-id]]))
 
 (def app-options* (atom {}))
-(def pages [:calc :test])
+(def pages [:calc])
 
 (defn score-calculator []
   (with-let [loading-autocomplete [:<>
@@ -27,26 +27,35 @@
                                    [gap :size theme/size-medium]
                                    [label {} "loading autocomplete"]]
 
-             mode* (atom nil)]
-    ; (let [v (count (or data []))]
+             mode* (atom :sacrifice-tournament)
+
+             selected-players* (atom {})]
+
     (let [db-data (get @app-options* :data)
           modes  (->> db-data
                       (s/select [s/MAP-VALS #(map? %) s/MAP-KEYS])
                       (set)
                       (#(set/difference % #{:quake-name})))
           mode @mode*
+          selected-players @selected-players*
+
           players  (->> db-data
                         (s/select [s/MAP-VALS #(map? %) :quake-name])
                         (set)
                         (sort))
           players->elos (->> db-data
-                           (s/select [s/MAP-VALS #(map? %)])
-                           (map #(hash-map (:quake-name %) %))
-                           (into {}))
-          
+                             (s/select [s/MAP-VALS #(map? %)])
+                             (map #(hash-map (:quake-name %) %))
+                             (into {}))
 
-          player-1 (:player-1 @app-options*)]
-      ; (println mode)
+          score-factor (->> selected-players
+                            (s/select [s/MAP-VALS]))
+
+          avg-score-factor (->> @selected-players*
+                                (s/select [s/MAP-VALS #(contains? players->elos (:name %))])
+                                (map (fn [{qname :name score :score}] (/ score (s/select-one [qname mode] players->elos))))
+                                (#(/ (reduce + %) (count %))))]
+
       [:<> {}
        (when (empty? db-data)
          [row {} [loading-autocomplete]])
@@ -54,38 +63,57 @@
 
        [gap :size theme/size-medium]
 
-       [label (str (count players))]
-       ; (println players)
+       [label (str "avg-score-factor " avg-score-factor)]
 
        [gap :size theme/size-medium]
 
-       [row  [[input-field-autocomplete
-               "Quake name"
-               (:player-1 @app-options*)
-               #(do
-                  (swap! app-options* assoc :player-1 %))
-               {:options-list players}]
-              (when (empty? players)
-                loading-autocomplete)]]
+       (for [n (range  8)
+             :let [player (get selected-players n "")
+                   player-name (:name player)
+                   player-score (:score player)
+
+                   player-exists (contains? (set players) player-name)
+                   marked-for-calc false
+                   player-elo (when (and (some? mode)
+                                         player-exists)
+                                (s/select-one [player-name mode] players->elos))
+                   player-score-factor (/ player-score player-elo)
+                   player-suggested-score (/ player-score avg-score-factor)]]
+                                          
+
+         ^{:key (str "quake-player-input-field" n)}
+         [column
+          [[row
+            [[input-field-autocomplete
+              "Quake name"
+              player-name
+              #(swap! selected-players* assoc-in [n :name] %)
+              {:options-list players}]
+
+             [gap :size theme/size-small]
+
+             [num-field
+              "Game Score"
+              player-score
+              #(swap! selected-players* assoc-in [n :score] %)]
+
+             [gap :size theme/size-small]
+             (when (empty? players)
+               loading-autocomplete)
+             [gap :size theme/size-small]
+             [label (str "ELO: " player-elo)]
+             [gap :size theme/size-small]
+             [label (str "Score: " player-score)]
+             [gap :size theme/size-small]
+             [label (str "factor: " player-score-factor)]
+             [gap :size theme/size-small]
+             [label (str "suggested: " player-suggested-score)]]]
+           [gap :size theme/size-small]]])
 
        [gap :size theme/size-medium]
-       (println (contains? players player-1))
 
-       (when (contains? (set players) player-1)
-         [label (s/select [player-1 mode] players->elos)])])))
+       [gap :size theme/size-medium]])))
 
-(contains? #{1 2 3} 1)
-(s/select [nil] {:a 1 :b 2})
-; (let [db-data (:data @app-options*)
-;       players->elos (->> db-data
-;                            (s/select [s/MAP-VALS #(map? %)])
-;                            (map #(hash-map (:quake-name %) %))
-;                            (into {}))]
-;   (s/select [(:player-1 @app-options*) nil] players->elos))
-; ; (let [x (map #(dissoc % :quake-name) d)]
-
-;     ; (map #(dissoc % :quake-name))))
-; (map #(keys %) x)
 
 (defn assoc-await [address atom* k & {:keys [cast!] :or {cast! edn/read-string}}]
   (let-await [data (http-get address)

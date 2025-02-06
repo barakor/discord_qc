@@ -21,21 +21,36 @@
                    :size [100 16]
                    :change! #(change! %)}]])])
 
-(defn input-field-autocomplete [title value change! & {:keys [enter! options-list] :or {enter! #()}}]
+(defn input-field-autocomplete [title value change! & {:keys [enter! options-list css] :or {enter! #()}}]
   (let [options-list-filter (fn [v list] (take 20 (filter #(string/starts-with? (string/lower-case %) (string/lower-case v)) list)))
-        value-options (options-list-filter (or value "") (or options-list []))]
-      [row
-       {}
-       (let [field-id (gensym title)]
-         [[label {} title]
-          [gap :size 8]
-          [input-text {:placeholder title
-                       :value value
-                       :options-list value-options
-                       :type "text"
-                       :enter! enter!
-                       :size [100 16]
-                       :change! #(change! %)}]])]))
+        value-options (options-list-filter (or value "") (or options-list []))
+        color (if (and (some? value) (contains? (set options-list) value)) theme/primary theme/danger)]
+    [row
+     {}
+     (let [field-id (gensym title)]
+       [[label {} title]
+        [gap :size 8]
+        [input-text {:placeholder title
+                     :value value
+                     :options-list value-options
+                     :type "text"
+                     :enter! enter!
+                     :size [100 16]
+                     :change! #(change! %)
+                     :css (into {:border (str "2px solid " color)} css)}]])]))
+
+(defn num-field [title value change! & {:keys [enter!] :or {enter! #()}}]
+  [row
+   {}
+   (let [field-id (gensym title)]
+     [[label {} title]
+      [gap :size 8]
+      [input-text {:placeholder title
+                   :value value
+                   :type "text"
+                   :enter! enter!
+                   :size [100 16]
+                   :change! #(change! (parse-long (string/replace % #"[^0-9]" "")))}]])])
 
 (defn on-off-component [available-options selected-options click! {:keys [print!] :or {print! #(get % "name")}}]
   [row {}
