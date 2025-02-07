@@ -21,3 +21,6 @@ rocksdb_backup
 /.calva
 *.sublime-*
 /_data
+/.shadow-cljs
+/node_modules
+/public/js
