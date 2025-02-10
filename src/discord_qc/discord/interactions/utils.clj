@@ -95,10 +95,10 @@
                                            (str "Unregistered Users: " (string/join ", " unregistered-users-names)))
                                          (str "Balancing for " (name game-mode))
                                          (str "Found " (count elos) " players")
-                                         (when (<= (count elos) 3)
+                                         (when (<= (count elos) 11)
                                            "Not Enough players to divide into teams")]))
 
-        embeds     (if (> (count elos) 3)
+        embeds     (if (> (count elos) 11)
                      (divide-hub-embed game-mode elos lobbies-names spectators)
                      [])]
     (log :debug guild-id user-id game-mode manual-entries ignored-players voice-channel-id voice-channel-members)
