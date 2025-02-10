@@ -70,7 +70,13 @@
         spectators (map #(assoc (elo/discord-id->Elo %) :discord-id %) ignored-players)
 
         unregistered-users (s/select [s/ALL #(not (:quake-name %)) :discord-id] elos)
-        unregistered-users-names (into {} (map #(hash-map % (get-user-display-name guild-id %)) unregistered-users))
+        unregistered-users-names-map (into {} (map #(hash-map % (get-user-display-name guild-id %)) unregistered-users))
+        unregistered-users-names (vals unregistered-users-names-map)
+
+        elos (map #(assoc % :quake-name
+                          (or (:quake-name %)
+                              (get unregistered-users-names-map (:discord-id %))))
+                  elos)
 
         reshuffle-gen-id (create-custom-id (into ["reshuffle!" (name game-mode)]
                                                  (concat (tag-custom-id "o" ignored-players)
