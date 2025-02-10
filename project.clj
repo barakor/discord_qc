@@ -15,6 +15,7 @@
 
 
                  [com.taoensso/timbre "6.3.1"] ; has to be above nippy because of dependancies 
+                 ; [com.taoensso/telemere "1.0.0-RC1"]`
                  [org.clj-commons/byte-streams "0.3.4"]
                  [com.taoensso/nippy "3.1.3"]
                  

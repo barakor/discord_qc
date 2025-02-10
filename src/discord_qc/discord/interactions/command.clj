@@ -112,7 +112,7 @@
                             (map clean-user-id)
                             (set))]
 
-    (srsp/channel-message (divide-hub guild-id user-id game-mode manual-entries ignored-players))))
+    (srsp/channel-message (divide-hub (str guild-id) (str user-id) game-mode manual-entries ignored-players))))
 
 ;; Admin commands
 

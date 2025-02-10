@@ -4,6 +4,8 @@
 
             [com.rpl.specter :as s]
 
+            [taoensso.timbre :as timbre :refer [log]]
+            
             [slash.component.structure :as scomp]
 
             [discord-qc.elo :as elo]
@@ -99,4 +101,5 @@
         embeds     (if (> (count elos) 3)
                      (divide-hub-embed game-mode elos lobbies-names spectators)
                      [])]
+    (log :debug guild-id user-id game-mode manual-entries ignored-players voice-channel-id voice-channel-members)
     {:content content :embeds embeds :components components}))

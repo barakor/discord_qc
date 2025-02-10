@@ -114,7 +114,7 @@
 
         ignored-players (get-tag-from-custom-id-tags custom-id-tags "o")
         manual-entries (get-tag-from-custom-id-tags custom-id-tags "i")]
-    (srsp/update-message (divide-hub guild-id user-id game-mode manual-entries ignored-players))))
+    (srsp/update-message (divide-hub (str guild-id) (str user-id) game-mode manual-entries ignored-players))))
 
  
 (defn component-interaction [interaction]
