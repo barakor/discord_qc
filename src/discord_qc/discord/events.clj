@@ -44,6 +44,7 @@
     (doall (map register-user-voice-channel voice-channels-users))))
 
 (defn voice-state-channel-update [_ {:keys [user-id guild-id channel-id] :as voice} state*]
+  (log :debug (str "user-id: " user-id ", guild-id: " guild-id ", channel-id: " channel-id))
   (when-let [old-channel-id (get-in @state* [:discljord.events.state/users user-id :voice :channel-id])]
     (swap! state* update-in [:voice-channels  old-channel-id] #(clojure.set/difference % #{user-id})))
   (when channel-id
