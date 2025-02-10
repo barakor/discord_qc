@@ -33,19 +33,24 @@
   [_ event-data]
   (sc/route-interaction interaction-handlers event-data))
 
+;; get's fill in data from discord on connect with the current state of the server, including voice-states 
 (defmethod handle-event :guild-create [type data]
   (let [register-user-voice-channel (fn [{:keys [channel-id user-id]}]
                                       (swap! discord-state*
                                              update-in [:voice-channels channel-id]
-                                             #(clojure.set/union % #{user-id})))
+                                             #(clojure.set/union % #{user-id}))
+                                      (swap! discord-state* assoc-in [:discljord.events.state/users user-id :voice :channel-id] channel-id))
+                                       
 
         voice-channels-users (s/select [:voice-states s/ALL (s/submap [:channel-id :user-id])] data)
         voice-channels-ids (s/select [:voice-states s/ALL :channel-id] data)]
     (log :debug voice-channels-users)
     (doall (map #(swap! discord-state* assoc-in [:voice-channels %] #{}) voice-channels-ids))
     (doall (map register-user-voice-channel voice-channels-users))
-    (log :debug (:voice-channels @discord-state*))))
+    (log :debug (select-keys (:voice-channels @discord-state*) voice-channels-ids))))
 
+
+;; diff update of voice states
 (defn voice-state-channel-update [_ {:keys [user-id guild-id channel-id] :as voice} state*]
   (log :debug (str "user-id: " user-id ", guild-id: " guild-id ", channel-id: " channel-id))
   (when-let [old-channel-id (get-in @state* [:discljord.events.state/users user-id :voice :channel-id])]
@@ -57,7 +62,5 @@
 (defn voice-state-update-wrapper [_ voice state*]
   (voice-state-channel-update  _ voice state*)
   (discord-state/voice-state-update _ voice state*))
-
-;TODO : ADD A :guild-create event wrapper to start the :voice-channels state
 
 (def caching-handlers (assoc discord-state/caching-handlers :voice-state-update [#'voice-state-update-wrapper]))
