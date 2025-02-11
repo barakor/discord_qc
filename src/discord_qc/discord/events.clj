@@ -8,7 +8,8 @@
    [discord-qc.discord.interactions :refer [interaction-handlers]]
    [discord-qc.discord.interactions.message :refer [balance-pubobot-queue]]
 
-   [taoensso.timbre :as timbre :refer [log]]
+   ; [taoensso.timbre :as timbre :refer [log]]
+   [taoensso.telemere.timbre :refer [log]]
    [com.rpl.specter :as s]))
 
 (defmulti handle-event
