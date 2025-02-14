@@ -1,0 +1,42 @@
+name: Sync File to Another Branch
+
+on:
+  push:
+    branches:
+      - db-data
+    paths:
+      - db-data.edn  # Change this to your specific file
+
+jobs:
+  sync_file:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Branch
+        uses: actions/checkout@v4
+        with:
+          ref: db-data
+          # fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Checkout Target Branch
+        run: |
+          git fetch origin gh-pages
+          git checkout gh-pages || git checkout -b gh-pages
+
+      - name: Copy Updated File
+        run: cp db-data.edn resources/db-data.edn  # Ensure the path matches your file
+
+      - name: Commit & Push Changes
+        run: |
+          git add resources/db-data.edn
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Sync updated file from source-branch"
+            git push origin gh-pages
+          fi
