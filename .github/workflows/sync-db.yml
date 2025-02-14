@@ -28,6 +28,18 @@ jobs:
           repo: ${{ github.event.repository.name }}
           route: GET /repos/{owner}/{repo}/contents/{path}
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}]
+
+      - name: Get File SHA on Target Branch
+        id: get_sha
+        uses: octokit/request-action@v2.x
+        with:
+          ref: gh-pages
+          path: resources/db-data.edn
+          owner: ${{ github.repository_owner }}
+          repo: ${{ github.event.repository.name }}
+          route: GET /repos/{owner}/{repo}/contents/{path}
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
@@ -42,6 +54,6 @@ jobs:
           message: "Sync updated file from db-data"
           content: ${{ fromJson(steps.get_file.outputs.data).content }}
           encoding: base64
-          # sha: ${{ fromJson(steps.get_file.outputs.data).sha }}
+          sha: ${{ fromJson(steps.get_sha.outputs.data).sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
