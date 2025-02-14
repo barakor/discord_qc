@@ -42,6 +42,6 @@ jobs:
           message: "Sync updated file from db-data"
           content: ${{ fromJson(steps.get_file.outputs.data).content }}
           encoding: base64
-          sha: ${{ fromJson(steps.get_file.outputs.data).sha }}
+          # sha: ${{ fromJson(steps.get_file.outputs.data).sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
