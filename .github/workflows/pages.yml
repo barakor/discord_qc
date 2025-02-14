@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - score-calculator-app
-      # - db-data
+      - db-data
   workflow_dispatch:
 
 jobs:
@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: score-calculator-app
 
       - name: Checkout db-data branch
         uses: actions/checkout@v4
