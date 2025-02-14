@@ -1,8 +1,7 @@
 (ns discord-qc.elo
   (:require
    [discord-qc.handle-db :as db]
-   [clojure.pprint :refer [pprint]]
-   [taoensso.nippy :refer [freeze thaw]]))
+   [clojure.pprint :refer [pprint]]))
 
 
 (def default-score 5.0)

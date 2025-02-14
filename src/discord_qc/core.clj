@@ -10,9 +10,10 @@
    [discord-qc.discord.events :refer [handle-event caching-handlers]]
    [discord-qc.discord.commands :refer [application-commands admin-commands owner-commands]]
 
-   [taoensso.timbre :as timbre :refer [log]]
+   [taoensso.telemere.timbre :as timbre :refer [log]]
    [taoensso.timbre.tools.logging :refer [use-timbre]]))
 
+(timbre/set-min-level! :debug)
 (use-timbre)
 
 (def bot-id (atom nil))
