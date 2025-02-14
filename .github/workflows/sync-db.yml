@@ -28,7 +28,7 @@ jobs:
           repo: ${{ github.event.repository.name }}
           route: GET /repos/{owner}/{repo}/contents/{path}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}]
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
       - name: Get File SHA on Target Branch
