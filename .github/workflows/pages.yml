@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: score-calculator-app
+
+      - name: Checkout db-data branch
+        uses: actions/checkout@v4
+        with:
+          ref: db-data
+          path: db-data-branch
+
+      - name: Copy db-data.edn to public/resources
+        run: |
+          mkdir -p ./public/resources
+          cp db-data-branch/db-data.edn ./public/resources/
+
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: npm install dependencies
+        run: npm install
+
+      - name: Build the project
+        run: npm run release
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public

@@ -1,0 +1,23 @@
+{:source-paths ["src"]
+
+ :dependencies [[binaryage/devtools "1.0.7"]
+                [reagent "1.2.0"]
+                [lambdaisland/fetch "1.5.83"]
+                [com.rpl/specter "1.1.4"]]
+                
+
+ :nrepl        {:port 3333}
+
+ :builds
+ {:app {:target :browser
+        :output-dir "public/js"
+        :asset-path "/js"
+
+        :modules
+        {:main
+         {:entries [app.web]}}
+
+        :devtools
+        {:after-load  app.web/main
+         :http-root   "public"
+         :http-port   3000}}}}
