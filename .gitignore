@@ -10,3 +10,5 @@ secret.edn
 /.shadow-cljs
 /node_modules
 /public/js
+.env
+event.json

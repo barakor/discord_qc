@@ -1,4 +1,4 @@
-name: Sync File to Another Branch
+name: sync_db
 
 on:
   push:
@@ -47,13 +47,13 @@ jobs:
       - name: Commit Updated File to Target Branch
         uses: octokit/request-action@v2.x
         with:
-          branch: gh-pages
+          branch: gh-pages-2
           path: resources/db-data.edn
           owner: ${{ github.repository_owner }}
           repo: ${{ github.event.repository.name }}
           route: PUT /repos/{owner}/{repo}/contents/{path}
           message: "Sync updated file from db-data"
-          content: ${{ fromJson(steps.get_file.outputs.data).content }}
+          content: ${{ steps.get_file.outputs.data.content }}
           encoding: base64
           sha: ${{ fromJson(steps.get_sha.outputs.data).sha }}
         env:
