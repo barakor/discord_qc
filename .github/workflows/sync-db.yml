@@ -26,7 +26,7 @@ jobs:
           path: db-data.edn
           owner: ${{ github.repository_owner }}
           repo: ${{ github.event.repository.name }}
-          mediaType: raw
+          # mediaType: raw
           route: GET /repos/{owner}/{repo}/contents/{path}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
