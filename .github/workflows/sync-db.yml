@@ -26,13 +26,12 @@ jobs:
           path: db-data.edn
           owner: ${{ github.repository_owner }}
           repo: ${{ github.event.repository.name }}
+          mediaType: | 
+            format: raw
           route: GET /repos/{owner}/{repo}/contents/{path}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clean File Content
-        id: clean_content
-        run: echo "::set-output name=cleaned_content::$(echo \"${{ fromJson(steps.get_file.outputs.data).content }}\" | tr -d '\n' | tr -d ' ')"
 
       - name: Get File SHA on Target Branch
         id: get_sha
