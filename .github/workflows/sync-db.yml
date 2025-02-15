@@ -48,7 +48,7 @@ jobs:
         id: echo_content
           # echo "${{ steps.get_file.outputs.data }}"
         run: |
-          echo ${{ steps.get_file.outputs.data }} | jq .content
+          echo '${{ steps.get_file.outputs.data }}' | jq .content
 
       - name: Commit Updated File to Target Branch
         uses: octokit/request-action@v2.x
@@ -60,7 +60,7 @@ jobs:
           route: PUT /repos/{owner}/{repo}/contents/{path}
           message: "Sync updated file from db-data"
           content: |
-            echo ${{ steps.get_file.outputs.data }} | jq .content
+            echo '${{ steps.get_file.outputs.data }}' | jq .content
           encoding: base64
           sha: ${{ fromJson(steps.get_sha.outputs.data).sha }}
         env:
