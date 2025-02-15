@@ -43,12 +43,7 @@ jobs:
           route: GET /repos/{owner}/{repo}/contents/{path}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-      - name: echo file content
-        id: echo_content
-          # echo "${{ steps.get_file.outputs.data }}"
-        run: |
-          echo '${{ steps.get_file.outputs.data }}' | jq .content
+
 
       - name: Commit Updated File to Target Branch
         uses: octokit/request-action@v2.x
@@ -59,8 +54,7 @@ jobs:
           repo: ${{ github.event.repository.name }}
           route: PUT /repos/{owner}/{repo}/contents/{path}
           message: "Sync updated file from db-data"
-          content: |
-            echo '${{ steps.get_file.outputs.data }}' | jq .content
+          content: ${{ replaceAll(fromJson(steps.get_file.outputs.data).content, '\\n', '') }}
           encoding: base64
           sha: ${{ fromJson(steps.get_sha.outputs.data).sha }}
         env:
