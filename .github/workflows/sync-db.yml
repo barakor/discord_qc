@@ -48,7 +48,7 @@ jobs:
         id: echo_content
           # echo "${{ steps.get_file.outputs.data }}"
         run: |
-          echoe "${{ fromJson(steps.get_file.outputs.data).content }}"
+          echo "${{ fromJson(steps.get_file.outputs.data).content }}"
 
       - name: Commit Updated File to Target Branch
         uses: octokit/request-action@v2.x
