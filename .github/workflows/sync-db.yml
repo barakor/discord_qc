@@ -30,6 +30,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Clean File Content
+        id: clean_content
+        run: echo "::set-output name=cleaned_content::$(echo \"${{ fromJson(steps.get_file.outputs.data).content }}\" | tr -d '\n' | tr -d ' ')"
 
       - name: Get File SHA on Target Branch
         id: get_sha
@@ -53,7 +56,7 @@ jobs:
           repo: ${{ github.event.repository.name }}
           route: PUT /repos/{owner}/{repo}/contents/{path}
           message: "Sync updated file from db-data"
-          content: ${{ steps.get_file.outputs.data.content }}
+          content: ${{ steps.clean_content.outputs.cleaned_content }}
           encoding: base64
           sha: ${{ fromJson(steps.get_sha.outputs.data).sha }}
         env:
