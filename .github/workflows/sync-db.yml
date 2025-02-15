@@ -58,7 +58,7 @@ jobs:
           repo: ${{ github.event.repository.name }}
           route: PUT /repos/{owner}/{repo}/contents/{path}
           message: "Sync updated file from db-data"
-          content: ${{ steps.get_file.outputs.data }}
+          content: ${{ fromJson(steps.get_file.outputs.data).content }}
           encoding: base64
           sha: ${{ fromJson(steps.get_sha.outputs.data).sha }}
         env:
