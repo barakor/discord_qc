@@ -55,7 +55,7 @@ jobs:
           route: PUT /repos/{owner}/{repo}/contents/{path}
           message: "Sync updated file from db-data"
           content: |
-            echo $CONTENT | base64
+            echo $CONTENT | base64 -w 0
           encoding: base64
           sha: ${{ fromJson(steps.get_sha.outputs.data).sha }}
         env:
