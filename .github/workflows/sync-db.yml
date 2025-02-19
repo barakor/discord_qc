@@ -43,7 +43,9 @@ jobs:
       - name: Base64 Encode CONTENT
         id: encode
         shell: bash
-        run: echo -n "${{ steps.get_file.outputs.data }}" | base64 -w 0
+        env:
+          CONTENT: ${{ steps.get_file.outputs.data }}
+        run: echo $CONTENT | base64 -w 0
 
 
       - name: Commit Updated File to Target Branch
