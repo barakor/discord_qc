@@ -44,7 +44,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+          
+      - name: check
+        id: check_run
+        run: echo "${{ fromJson(steps.get_file.outputs.data).content }}" | tr -d '[:space:]'
 
+          
       - name: Commit Updated File to Target Branch
         uses: octokit/request-action@v2.x
         with:
