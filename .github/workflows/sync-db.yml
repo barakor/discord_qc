@@ -45,8 +45,7 @@ jobs:
         shell: bash
         env:
           CONTENT: ${{ steps.get_file.outputs.data }}
-        run: echo $CONTENT | base64 -w 0
-
+        run: echo "base64_data=$(echo $CONTENT | base64 -w 0 )" >> $GITHUB_ENV
 
       - name: Commit Updated File to Target Branch
         uses: octokit/request-action@v2.x
@@ -57,7 +56,7 @@ jobs:
           repo: ${{ github.event.repository.name }}
           route: PUT /repos/{owner}/{repo}/contents/{path}
           message: "Sync updated file from db-data"
-          content: ${{ steps.encode.outputs.stdout }} 
+          content: ${{ env.base64_data }} 
           encoding: base64
           sha: ${{ fromJson(steps.get_sha.outputs.data).sha }}
         env:
