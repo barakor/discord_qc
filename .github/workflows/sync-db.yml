@@ -27,7 +27,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repo: ${{ github.event.repository.name }}
           mediaType: |
-            raw
+            format: raw
           route: GET /repos/{owner}/{repo}/contents/{path}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
