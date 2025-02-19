@@ -1,5 +1,4 @@
 {"admin-ids"
- 
  #{"322435511551787019"
    "150411896833441793"
    "513033885492445204"
@@ -52,6 +51,7 @@
    "178342910973050880"
    "427133921050886154"
    "234350899298828288"
+   "81432841195356160"
    "337687224751751168"
    "263749028229939201"
    "eldeibe"
@@ -105,6 +105,7 @@
    "1094665904568160389"
    "427084489890463744"
    "312561788858400771"
+   "387362322873843714"
    "194228573563781120"
    "381432565380153371"
    "151006541187645440"
@@ -129,6 +130,7 @@
    "806462978828402699"
    "622883236242128935"
    "169893843028803586"
+   "417798524391129091"
    "399052636776693772"
    "264321863809892362"
    "361508622305591297"
@@ -172,6 +174,7 @@
    "337718892153667585"
    "183678140181250048"
    "269642015258574849"
+   "95669395203817472"
    "458383614116364320"
    "195779215939993600"
    "444623890635816961"
@@ -645,7 +648,7 @@
   :objective 3.0526540279388428,
   :tdm-2v2 1.5977415},
  "discord-id->elo-map/163031272019591168"
- {:quake-name "leadheadbod",
+ {:quake-name "leadhead",
   :killing 3.1315619707107545,
   :ranked-duel 0.0,
   :tdm 2.0130553,
@@ -702,17 +705,17 @@
   :tdm-2v2 1.7190173},
  "discord-id->elo-map/165788979461881857"
  {:quake-name "velshu",
-  :killing 5.0,
-  :tdm 5.0,
-  :sacrifice-tournament 5.0,
-  :instagib 5.0,
-  :slipgate 5.0,
-  :duel 5.0,
-  :ctf 5.0,
-  :ffa 5.0,
-  :sacrifice 5.0,
-  :objective 5.0,
-  :tdm-2v2 5.0},
+  :killing 6.0,
+  :tdm 6.0,
+  :sacrifice-tournament 6.0,
+  :instagib 6.0,
+  :slipgate 6.0,
+  :duel 6.0,
+  :ctf 6.0,
+  :ffa 6.0,
+  :sacrifice 6.0,
+  :objective 6.0,
+  :tdm-2v2 6.0},
  "discord-id->elo-map/165922255132426241"
  {:quake-name "sylosis",
   :killing 6.162,
@@ -1552,7 +1555,7 @@
   :killing 3.5858144044876097,
   :ranked-duel 0.0,
   :tdm 2.5670347,
-  :sacrifice-tournament 3.6672087,
+  :sacrifice-tournament 6.0,
   :instagib 7.266073,
   :slipgate 2.9287753,
   :duel 0.34672996,
@@ -2065,6 +2068,19 @@
   :sacrifice 4.3090773,
   :objective 4.360438267389934,
   :tdm-2v2 1.4984525},
+ "discord-id->elo-map/387362322873843714"
+ {:quake-name "Tex0",
+  :killing 7.2,
+  :tdm 7.2,
+  :sacrifice-tournament 7.0,
+  :instagib 7.2,
+  :slipgate 7.2,
+  :duel 7.2,
+  :ctf 7.2,
+  :ffa 7.2,
+  :sacrifice 7.2,
+  :objective 7.2,
+  :tdm-2v2 7.2},
  "discord-id->elo-map/389637516069961729"
  {:quake-name "nukest",
   :killing 4.088931536674499,
@@ -2191,6 +2207,19 @@
   :sacrifice 2.0195122,
   :objective 1.9981257319450378,
   :tdm-2v2 2.3129306},
+ "discord-id->elo-map/417798524391129091"
+ {:quake-name "Chenz0",
+  :killing 8.8,
+  :tdm 8.8,
+  :sacrifice-tournament 8.8,
+  :instagib 8.8,
+  :slipgate 8.8,
+  :duel 8.8,
+  :ctf 8.8,
+  :ffa 8.8,
+  :sacrifice 8.8,
+  :objective 8.8,
+  :tdm-2v2 8.8},
  "discord-id->elo-map/421704609719910411"
  {:quake-name "kaa the snek",
   :killing 3.5530176877975466,
@@ -3014,6 +3043,19 @@
   :sacrifice 4.8189654,
   :objective 4.801699638366699,
   :tdm-2v2 0.99350417},
+ "discord-id->elo-map/81432841195356160"
+ {:quake-name "harosh1ma",
+  :killing 6.9,
+  :tdm 6.9,
+  :sacrifice-tournament 6.9,
+  :instagib 6.9,
+  :slipgate 6.9,
+  :duel 6.9,
+  :ctf 6.9,
+  :ffa 6.9,
+  :sacrifice 6.9,
+  :objective 6.9,
+  :tdm-2v2 6.9},
  "discord-id->elo-map/83988945729261568"
  {:quake-name "predath0r",
   :killing 3.9212255001068117,
@@ -3125,6 +3167,19 @@
   :sacrifice 6.9,
   :objective 6.9,
   :tdm-2v2 6.9},
+ "discord-id->elo-map/95669395203817472"
+ {:quake-name "se_n",
+  :killing 7.5,
+  :tdm 7.5,
+  :sacrifice-tournament 7.5,
+  :instagib 7.5,
+  :slipgate 7.5,
+  :duel 7.5,
+  :ctf 7.5,
+  :ffa 7.5,
+  :sacrifice 7.5,
+  :objective 7.5,
+  :tdm-2v2 7.5},
  "discord-id->elo-map/95671127803703296"
  {:quake-name "botmo",
   :killing 4.382745933532715,
