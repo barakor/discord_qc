@@ -20,8 +20,8 @@ jobs:
           path: db-data.edn
           owner: ${{ github.repository_owner }}
           repo: ${{ github.event.repository.name }}
-          mediaType: |
-            format: raw
+          # mediaType: |
+          #   format: raw
           route: GET /repos/{owner}/{repo}/contents/{path}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -44,8 +44,9 @@ jobs:
         id: encode
         shell: bash
         env:
-          CONTENT: ${{ steps.get_file.outputs.data }}
-        run: echo "base64_data=$(echo $CONTENT | base64 )" >> $GITHUB_ENV
+          CONTENT: ${{ fromJson(steps.get_file.outputs.data).content }}
+        run: echo "base64_data=$(echo $CONTENT | tr -d '[:space:]' )" >> $GITHUB_ENV
+
 
       - name: Commit Updated File to Target Branch
         uses: octokit/request-action@v2.x
