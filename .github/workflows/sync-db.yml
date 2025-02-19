@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - db-data
-    # paths:
-      # - db-data.edn  # Change this to your specific file
+    paths:
+      - db-data.edn  # Change this to your specific file
 
 jobs:
   sync_file:
@@ -50,7 +50,7 @@ jobs:
       - name: Commit Updated File to Target Branch
         uses: octokit/request-action@v2.x
         with:
-          branch: gh-pages-2
+          branch: gh-pages
           path: resources/db-data.edn
           owner: ${{ github.repository_owner }}
           repo: ${{ github.event.repository.name }}
