@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - db-data
-    paths:
-      - db-data.edn  # Change this to your specific file
+    # paths:
+    #   - db-data.edn  # Change this to your specific file
 
 jobs:
   sync_file:
@@ -45,7 +45,7 @@ jobs:
         shell: bash
         env:
           CONTENT: ${{ steps.get_file.outputs.data }}
-        run: echo "base64_data=$(echo $CONTENT | base64 -w 0 )" >> $GITHUB_ENV
+        run: echo "base64_data=$(echo $CONTENT | base64 )" >> $GITHUB_ENV
 
       - name: Commit Updated File to Target Branch
         uses: octokit/request-action@v2.x
