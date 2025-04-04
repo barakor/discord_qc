@@ -24,3 +24,5 @@ rocksdb_backup
 /.shadow-cljs
 /node_modules
 /public/js
+event.json
+.env
