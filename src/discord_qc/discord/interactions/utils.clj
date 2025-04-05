@@ -5,7 +5,7 @@
             [com.rpl.specter :as s]
 
             [taoensso.timbre :as timbre :refer [log]]
-            
+
             [slash.component.structure :as scomp]
 
             [discord-qc.elo :as elo]
@@ -32,10 +32,11 @@
 
 (defn decode-base [s]
   (let [base (count base-chars)]
-    (reduce (fn [acc char]
-              (+ (* acc base) (string/index-of base-chars char)))
-            0
-            s)))
+    (str
+     (reduce (fn [acc char]
+               (+ (* acc base) (string/index-of base-chars char)))
+             0
+             s))))
 
 (defn tag-custom-id [custom-key values]
   (map #(str ":" custom-key ":" (encode-base %)) values))
@@ -101,5 +102,13 @@
         embeds     (if (> (count elos) 11)
                      (divide-hub-embed game-mode elos lobbies-names spectators)
                      [])]
-    (log :debug guild-id user-id game-mode manual-entries ignored-players voice-channel-id voice-channel-members)
+    (log :debug
+         :guild-id guild-id
+         :user-id user-id
+         :game-mode game-mode
+         :lobbies-names lobbies-names
+         :manual-entries manual-entries
+         :ignored-players ignored-players
+         :voice-channel-id voice-channel-id
+         :voice-channel-members voice-channel-members)
     {:content content :embeds embeds :components components}))
