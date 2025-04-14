@@ -111,12 +111,20 @@
                       (string/split #"/")
                       (second)
                       (#(get (set/map-invert elo/mode-names) %)))
+        sorting-method (-> custom-id
+                           (string/split #"/")
+                           (nth 2))
 
         ignored-players (get-tag-from-custom-id-tags custom-id-tags "o")
         manual-entries (get-tag-from-custom-id-tags custom-id-tags "i")]
-    (srsp/update-message (divide-hub (str guild-id) (str user-id) game-mode manual-entries ignored-players))))
+    (srsp/update-message (divide-hub
+                          (str guild-id)
+                          (str user-id)
+                          game-mode
+                          sorting-method
+                          manual-entries
+                          ignored-players))))
 
- 
 (defn component-interaction [interaction]
   @(discord-rest/create-interaction-response! (:rest @state*) (:id interaction) (:token interaction) (:type srsp/deferred-update-message))
   (let [original-author-id (get-in interaction [:message :interaction :user :id])

@@ -60,7 +60,7 @@
 (defn map-command-interaction-options [interaction]
   (into {} (map #(hash-map (:name %) (:value %)) (get-in interaction [:data :options]))))
 
-(defn divide-hub [guild-id user-id game-mode manual-entries ignored-players]
+(defn divide-hub [guild-id user-id game-mode sorting-method manual-entries ignored-players]
   (let [voice-channel-id (user-in-voice-channel? user-id)
         lobbies-names (get-sibling-voice-channels-names guild-id voice-channel-id)
         voice-channel-members (get-voice-channel-members voice-channel-id)
@@ -81,7 +81,7 @@
                               (get unregistered-users-names-map (:discord-id %))))
                   elos)
 
-        reshuffle-gen-id (create-custom-id (into ["reshuffle!" (name game-mode)]
+        reshuffle-gen-id (create-custom-id (into ["reshuffle!" (name game-mode) sorting-method]
                                                  (concat (tag-custom-id "o" ignored-players)
                                                          (tag-custom-id "i" manual-entries))))
         components (build-components-action-rows
@@ -100,7 +100,7 @@
                                            "Not Enough players to divide into teams")]))
 
         embeds     (if (> (count elos) 11)
-                     (divide-hub-embed game-mode elos lobbies-names spectators)
+                     (divide-hub-embed game-mode sorting-method elos lobbies-names spectators)
                      [])]
     (log :debug
          :guild-id guild-id

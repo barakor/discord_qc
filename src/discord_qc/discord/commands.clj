@@ -52,6 +52,9 @@
                         {:name "TDM", :value "tdm"}
                         {:name "TDM 2V2", :value "tdm-2v2"}])
 
+(def sorting-options [{:name "Player's Score" :value "score"}
+                      {:name "Random" :value "random"}])
+
 (def adjust-command
   (scs/command
    "adjust"
@@ -87,6 +90,8 @@
    [(scs/option "game-mode" "Game Mode" :string
                 :required true
                 :choices game-mode-choices)
+    (scs/option "sort-by" "Sort players before dividing them" :string
+                :choices sorting-options)
     (scs/option "spectator-tag1" "Manually tag discord user as a spectator" :string)
     (scs/option "spectator-tag2" "Manually tag discord user as a spectator" :string)
     (scs/option "spectator-tag3" "Manually tag discord user as a spectator" :string)
