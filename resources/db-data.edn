@@ -57,7 +57,6 @@
    "337687224751751168"
    "566728309577220110"
    "263749028229939201"
-   "eldeibe"
    "737399908096540764"
    "676903065001000997"
    "209008949565980673"
@@ -3388,17 +3387,4 @@
   :ffa 3.4914372,
   :sacrifice 9.976316,
   :objective 7.764333407084147,
-  :tdm-2v2 0.0},
- "discord-id->elo-map/eldeibe"
- {:quake-name "eldeibe",
-  :killing 5.0,
-  :tdm 5.0,
-  :sacrifice-tournament 5.0,
-  :instagib 5.0,
-  :slipgate 5.0,
-  :duel 5.0,
-  :ctf 5.0,
-  :ffa 5.0,
-  :sacrifice 5.0,
-  :objective 5.0,
-  :tdm-2v2 5.0}}
+  :tdm-2v2 0.0}}
