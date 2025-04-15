@@ -52,8 +52,8 @@
                         {:name "TDM", :value "tdm"}
                         {:name "TDM 2V2", :value "tdm-2v2"}])
 
-(def sorting-options [{:name "Player's Score" :value "score"}
-                      {:name "Random" :value "random"}])
+(def sorting-options [{:name "Random" :value "random"}
+                      {:name "Player's Score" :value "score"}])
 
 (def adjust-command
   (scs/command

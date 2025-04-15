@@ -125,7 +125,7 @@
                                            (balancing/hybrid-draft-weighted-allocation)
                                            (first)))
         sort-fn (get balancing/sorting-methods sort-method)
-        
+
         shuffled-players (sort-fn elos game-mode)
         spectators (if (= (rem (count elos) 2) 1)
                      (conj spectators (last shuffled-players))

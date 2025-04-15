@@ -20,7 +20,7 @@
                                               user-in-voice-channel?
                                               build-components-action-rows
                                               get-user-display-name]]
-            [discord-qc.discord.commands :refer [application-commands admin-commands owner-commands]]
+            [discord-qc.discord.commands :refer [application-commands admin-commands owner-commands sorting-options]]
             [discord-qc.discord.interactions.utils :refer [map-command-interaction-options
                                                            divide-hub]]))
 
@@ -100,7 +100,7 @@
         guild-id (:guild-id interaction)
         user-id (s/select-first [:member :user :id] interaction)
         game-mode (get (set/map-invert elo/mode-names) (get interaction-options "game-mode"))
-        sorting-method (get interaction-options "sort-by")
+        sorting-method (get interaction-options "sort-by" (-> sorting-options (first) (:value)))
 
         ignored-players (->> (get-keys-starting-with interaction-options "spectator-tag")
                              (vals)
@@ -112,11 +112,11 @@
                             (map clean-user-id)
                             (set))]
 
-    (srsp/channel-message (divide-hub (str guild-id) 
-                                      (str user-id) 
-                                      game-mode 
-                                      sorting-method 
-                                      manual-entries 
+    (srsp/channel-message (divide-hub (str guild-id)
+                                      (str user-id)
+                                      game-mode
+                                      sorting-method
+                                      manual-entries
                                       ignored-players))))
 
 ;; Admin commands

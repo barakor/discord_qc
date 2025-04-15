@@ -88,13 +88,14 @@
                     [(scomp/button :success
                                    (if (< (count reshuffle-gen-id) 100)
                                      reshuffle-gen-id
-                                     (create-custom-id ["reshuffle!" (name game-mode)]))
+                                     (create-custom-id ["reshuffle!" (name game-mode) sorting-method]))
                                    :label "Reshuffle!")]) ;;;;;;; TODO: MAKE THIS SHORTER
         content    (string/join "\n"
                                 (filter some?
                                         [(when (not-empty unregistered-users)
                                            (str "Unregistered Users: " (string/join ", " unregistered-users-names)))
                                          (str "Balancing for " (name game-mode))
+                                         (str "Sorted by " (name sorting-method))
                                          (str "Found " (count elos) " players")
                                          (when (<= (count elos) 11)
                                            "Not Enough players to divide into teams")]))
