@@ -1,6 +1,8 @@
 (ns discord-qc.balancing
   (:require [clojure.math.combinatorics :refer [combinations]]
-            [com.rpl.specter :as s]))
+            [com.rpl.specter :as s]
+            
+            [discord-qc.elo :refer [default-score]]))
 
 ; (def mock-players-elo {"iikxii" 5.9680834
 ;                        "cashedcheck" 3.723866
@@ -10,6 +12,9 @@
 ;                        "lezyes" 4.702424
 ;                        "xtortion" 6.7005982
 ;                        "rapha" 0.44074476})
+
+(def sorting-methods {"random" (fn [elos _] (shuffle elos))
+                      "score" (fn [elos game-mode] (sort-by #(get % game-mode default-score) elos))})
 
 (defn complementary-team [all-players team1]
   (apply dissoc all-players (keys team1)))
