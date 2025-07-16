@@ -187,7 +187,7 @@
 
 (defmethod handle-command-interaction "restore-db-backup" [interaction]
   (let [interaction-options (map-command-interaction-options interaction)]
-    (db/refresh-db-from-gihub)
+    (db/refresh-db-from-github)
     (srsp/channel-message {:content "DB restored from backup"})))
 
 (defonce ^:private admin-only-commands (set (map :name admin-commands)))
