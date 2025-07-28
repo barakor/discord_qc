@@ -20,6 +20,7 @@
                                             :as event-data}]
   (try
     (when (and (not-empty embeds) (re-find (re-pattern "has started") (get (first embeds) :title "")))
+      (log :debug (str "Got A potential pubobot message: " event-data))
       (balance-pubobot-queue event-data))
     (catch Exception e (log :error (str "Couldn't parse message: " e)))))
   ; does nothing rn
