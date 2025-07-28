@@ -16,9 +16,10 @@
   "Event handling multi method. Dispatches on the type of the event."
   (fn [type _data] type))
 
-(defmethod handle-event :message-create [_ {:keys [channel-id author embeds mentions] :as event-data}]
+(defmethod handle-event :message-create [_ {:keys [channel-id author embeds mentions]
+                                            :as event-data}]
   (try
-    (when (and (not-empty embeds) (re-find (re-pattern "has started") (get  (first embeds) :title "")))
+    (when (and (not-empty embeds) (re-find (re-pattern "has started") (get (first embeds) :title "")))
       (balance-pubobot-queue event-data))
     (catch Exception e (log :error (str "Couldn't parse message: " e)))))
   ; does nothing rn
@@ -41,7 +42,6 @@
                                              update-in [:voice-channels channel-id]
                                              #(clojure.set/union % #{user-id}))
                                       (swap! discord-state* assoc-in [:discljord.events.state/users user-id :voice :channel-id] channel-id))
-                                       
 
         voice-channels-users (s/select [:voice-states s/ALL (s/submap [:channel-id :user-id])] data)
         voice-channels-ids (s/select [:voice-states s/ALL :channel-id] data)]
@@ -50,9 +50,9 @@
     (doall (map register-user-voice-channel voice-channels-users))
     (log :debug (select-keys (:voice-channels @discord-state*) voice-channels-ids))))
 
-
 ;; diff update of voice states
-(defn voice-state-channel-update [_ {:keys [user-id guild-id channel-id] :as voice} state*]
+(defn voice-state-channel-update [_ {:keys [user-id guild-id channel-id]
+                                     :as voice} state*]
   (log :debug (str "user-id: " user-id ", guild-id: " guild-id ", channel-id: " channel-id))
   (when-let [old-channel-id (get-in @state* [:discljord.events.state/users user-id :voice :channel-id])]
     (log :debug (str "user-id: " user-id ", old-channel-id: " old-channel-id))
