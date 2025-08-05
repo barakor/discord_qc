@@ -26,3 +26,8 @@ rocksdb_backup
 /public/js
 event.json
 .env
+
+
+# Added by cargo
+
+/target
