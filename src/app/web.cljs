@@ -79,7 +79,7 @@
                                 (s/select-one [player-name mode] players->elos))
                    player-score-factor (/ player-score player-elo)
                    player-suggested-score (/ player-score avg-score-factor)]]
-                                          
+
 
          ^{:key (str "quake-player-input-field" n)}
          [column
