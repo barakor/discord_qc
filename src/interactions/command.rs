@@ -1,0 +1,658 @@
+use crate::{
+    balancing::SortMethod,
+    db_handler::{Db, GameMode, PlayerElo, player_elo_embed},
+    discord_utils::{
+        build_components_action_rows, button, text_response, trim_tags, user_voice_channel,
+        voice_channel_members,
+    },
+    event_handler::Bot,
+    github_handler::{get_bytes_from_github, upload_bytes_to_github},
+    interactions::utils::{divide_hub, named_elos},
+};
+use anyhow::{Result, anyhow};
+use async_trait::async_trait;
+use std::collections::BTreeSet;
+use twilight_interactions::command::{CommandModel, CommandOption, CreateCommand, CreateOption};
+use twilight_model::{
+    application::interaction::{
+        Interaction,
+        application_command::{CommandData, CommandDataOption, CommandOptionValue},
+    },
+    channel::message::component::ButtonStyle,
+    http::interaction::InteractionResponseData,
+    id::{Id, marker::UserMarker},
+};
+use twilight_util::builder::InteractionResponseDataBuilder;
+
+/// Authorization tier required to invoke a command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Permission {
+    /// Anyone may use it.
+    App,
+    /// Holders of the admin role in the home server (and the owner).
+    Admin,
+    /// Bot owner only.
+    Owner,
+}
+
+/// Discord registration payload paired with the tier required to run it. Built
+/// from each command's `BotCommand` impl, so the trait stays the single source
+/// of truth. Dispatch goes through [`Bot::handle_command`], whose `match` keys
+/// off the same `C::NAME` consts; the `registrations_dispatch_in_sync` test
+/// guards that the two lists agree.
+pub fn registrations() -> Vec<(Permission, twilight_model::application::command::Command)> {
+    fn entry<C: BotCommand>() -> (Permission, twilight_model::application::command::Command) {
+        (C::PERMISSION, C::create_command().into())
+    }
+    vec![
+        entry::<BalanceCommand>(),
+        entry::<DivideCommand>(),
+        entry::<RenameCommand>(),
+        entry::<QueryCommand>(),
+        entry::<RenameOtherCommand>(),
+        entry::<RegisterCommand>(),
+        entry::<AdjustCommand>(),
+        entry::<DBStatsCommand>(),
+        entry::<BackupDbCommand>(),
+        entry::<RestoreDBBackupCommand>(),
+    ]
+}
+
+pub struct HandleResponse {
+    /// Optional response to send back to Discord.
+    pub response: Option<InteractionResponseData>,
+    /// Optional detail for the bot-logs audit line.
+    pub log_detail: Option<String>,
+}
+
+#[async_trait::async_trait]
+pub trait BotCommand: CreateCommand + CommandModel + Send + Sync + 'static {
+    /// Authorization tier required to run it.
+    const PERMISSION: Permission;
+    /// Response is only shown to the invoking user.
+    const EPHEMERAL: bool;
+    /// Mutates the db; success triggers a persist + github backup.
+    const MUTATING: bool;
+    /// Handle the command, returning an optional response to send back to Discord.
+    async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse>;
+}
+
+/// Render a slash command invocation back to its textual form, e.g.
+/// `/register discord_id:<@123> quake_name:foo score:5`. Used for the bot-logs
+/// audit line so the full command (name + every supplied option) is captured.
+pub fn render_invocation(data: &CommandData) -> String {
+    let mut out = format!("/{}", data.name);
+    render_options(&data.options, &mut out);
+    out
+}
+
+fn render_options(options: &[CommandDataOption], out: &mut String) {
+    for option in options {
+        match &option.value {
+            CommandOptionValue::SubCommand(sub) | CommandOptionValue::SubCommandGroup(sub) => {
+                out.push(' ');
+                out.push_str(&option.name);
+                render_options(sub, out);
+            }
+            value => {
+                out.push_str(&format!(" {}:{}", option.name, render_value(value)));
+            }
+        }
+    }
+}
+
+fn render_value(value: &CommandOptionValue) -> String {
+    match value {
+        CommandOptionValue::String(s) => s.clone(),
+        CommandOptionValue::Integer(i) => i.to_string(),
+        CommandOptionValue::Number(n) => n.to_string(),
+        CommandOptionValue::Boolean(b) => b.to_string(),
+        CommandOptionValue::User(id) => format!("<@{}>", id),
+        CommandOptionValue::Mentionable(id) => format!("<@{}>", id),
+        CommandOptionValue::Channel(id) => format!("<#{}>", id),
+        CommandOptionValue::Role(id) => format!("<@&{}>", id),
+        CommandOptionValue::Attachment(id) => id.to_string(),
+        CommandOptionValue::Focused(s, _) => s.clone(),
+        CommandOptionValue::SubCommand(_) | CommandOptionValue::SubCommandGroup(_) => String::new(),
+    }
+}
+
+/// Game modes exposed as slash command choices (mirrors the Clojure choice list).
+#[derive(CommandOption, CreateOption, Debug, Clone, Copy)]
+pub enum GameModeOption {
+    #[option(name = "Sacrifice Tournament", value = "sacrifice-tournament")]
+    SacrificeTournament,
+    #[option(name = "Objective", value = "objective")]
+    Objective,
+    #[option(name = "Killing", value = "killing")]
+    Killing,
+    #[option(name = "Slipgate", value = "slipgate")]
+    Slipgate,
+    #[option(name = "CTF", value = "ctf")]
+    Ctf,
+    #[option(name = "TDM", value = "tdm")]
+    Tdm,
+    #[option(name = "TDM 2V2", value = "tdm-2v2")]
+    Tdm2v2,
+}
+
+impl From<GameModeOption> for GameMode {
+    fn from(option: GameModeOption) -> Self {
+        match option {
+            GameModeOption::SacrificeTournament => GameMode::SacrificeTournament,
+            GameModeOption::Objective => GameMode::Objective,
+            GameModeOption::Killing => GameMode::Killing,
+            GameModeOption::Slipgate => GameMode::Slipgate,
+            GameModeOption::Ctf => GameMode::Ctf,
+            GameModeOption::Tdm => GameMode::Tdm,
+            GameModeOption::Tdm2v2 => GameMode::Tdm2v2,
+        }
+    }
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "query", desc = "Query Quake player's stats")]
+pub struct QueryCommand {
+    #[command(desc = "Discord Tag/ID or Quake Name")]
+    pub quaker: String,
+}
+
+#[async_trait]
+impl BotCommand for QueryCommand {
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = false;
+
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let db = bot.db.read().await;
+
+        let trimmed_quaker = trim_tags(&self.quaker);
+
+        let user = match trimmed_quaker.parse::<u64>() {
+            Ok(discord_id) => db.elos.get(&discord_id),
+            Err(_) => db.by_quake_name(trimmed_quaker),
+        };
+        let response = match user {
+            Some(user) => player_elo_embed(user),
+            None => text_response("couldn't find data for user"),
+        };
+        Ok(HandleResponse {
+            response: Some(response),
+            log_detail: None,
+        })
+    }
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "rename", desc = "Rename Quaker")]
+pub struct RenameCommand {
+    #[command(desc = "Quake Name")]
+    pub quake_name: String,
+}
+
+#[async_trait]
+impl BotCommand for RenameCommand {
+    const PERMISSION: Permission = Permission::App;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
+
+    async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse> {
+        let user_id = interaction
+            .author_id()
+            .map(|id| id.get())
+            .ok_or(anyhow!("interaction without author"))?;
+        let new_name = self.quake_name;
+
+        let mut db = bot.db.write().await;
+        match db.rename(user_id, new_name.clone()) {
+            Some(old_name) => Ok(HandleResponse {
+                response: Some(
+                    InteractionResponseDataBuilder::new()
+                        .content(format!("Renamed to `{new_name}`"))
+                        .build(),
+                ),
+                log_detail: Some(format!("{old_name} -> {new_name}")),
+            }),
+            None => Ok(HandleResponse {
+                response: Some(text_response("couldn't find user")),
+                log_detail: None,
+            }),
+        }
+    }
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "rename-other", desc = "Rename Quaker")]
+pub struct RenameOtherCommand {
+    #[command(desc = "Tag a discord user")]
+    pub discord_id: Id<UserMarker>,
+    #[command(desc = "Quake Name")]
+    pub quake_name: String,
+}
+
+#[async_trait]
+impl BotCommand for RenameOtherCommand {
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
+
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let discord_id = self.discord_id.get();
+        let new_name = self.quake_name;
+        let mut db = bot.db.write().await;
+        match db.rename(discord_id, new_name.clone()) {
+            Some(old_name) => {
+                let elo = db.elos.get(&discord_id).expect("just renamed, must exist");
+                Ok(HandleResponse {
+                    response: Some(player_elo_embed(elo)),
+                    log_detail: Some(format!("{old_name} -> {new_name}")),
+                })
+            }
+            None => Ok(HandleResponse {
+                response: Some(text_response("couldn't find user")),
+                log_detail: None,
+            }),
+        }
+    }
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "register", desc = "Register Quaker")]
+pub struct RegisterCommand {
+    #[command(desc = "Tag a discord user")]
+    pub discord_id: Id<UserMarker>,
+    #[command(desc = "Quake Name")]
+    pub quake_name: String,
+    #[command(desc = "Player's score for all modes")]
+    pub score: f64,
+}
+
+#[async_trait]
+impl BotCommand for RegisterCommand {
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
+
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let discord_id = self.discord_id.get();
+        let elo = PlayerElo::with_score(self.quake_name, self.score);
+        bot.db.write().await.register(discord_id, elo.clone());
+        Ok(HandleResponse {
+            response: Some(player_elo_embed(&elo)),
+            log_detail: None,
+        })
+    }
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "adjust", desc = "Adjust Quaker Mode Score")]
+pub struct AdjustCommand {
+    #[command(desc = "Tag a discord user")]
+    pub discord_id: Id<UserMarker>,
+    #[command(desc = "Player's score for the mode")]
+    pub score: f64,
+    #[command(desc = "Game Mode (defaults to Sacrifice Tournament)")]
+    pub game_mode: Option<GameModeOption>,
+}
+
+#[async_trait]
+impl BotCommand for AdjustCommand {
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
+
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let discord_id = self.discord_id.get();
+        let mode = self
+            .game_mode
+            .unwrap_or(GameModeOption::SacrificeTournament)
+            .into();
+        let mut db = bot.db.write().await;
+        match db.elos.get_mut(&discord_id) {
+            Some(elo) => {
+                let log_detail = Some(format!("{} -> {}", elo.score(mode), self.score));
+                elo.set_score(mode, self.score);
+                Ok(HandleResponse {
+                    response: Some(player_elo_embed(elo)),
+                    log_detail,
+                })
+            }
+            None => Ok(HandleResponse {
+                response: Some(text_response("couldn't find user")),
+                log_detail: None,
+            }),
+        }
+    }
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "db-stats", desc = "Get stats about the db")]
+pub struct DBStatsCommand {}
+
+#[async_trait]
+impl BotCommand for DBStatsCommand {
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = false;
+
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let players_registered = bot.db.read().await.elos.len();
+        Ok(HandleResponse {
+            response: Some(text_response(format!(
+                "# Of players registered in db: {}",
+                players_registered
+            ))),
+            log_detail: None,
+        })
+    }
+}
+
+/// Sort orders exposed on /divide.
+#[derive(CommandOption, CreateOption, Debug, Clone, Copy)]
+pub enum SortMethodOption {
+    #[option(name = "Random", value = "random")]
+    Random,
+    #[option(name = "Player's Score", value = "score")]
+    Score,
+}
+
+impl From<SortMethodOption> for SortMethod {
+    fn from(option: SortMethodOption) -> Self {
+        match option {
+            SortMethodOption::Random => SortMethod::Random,
+            SortMethodOption::Score => SortMethod::Score,
+        }
+    }
+}
+
+/// Parse the optional player/spectator tag options into a set of ids,
+/// silently skipping anything that isn't a user mention.
+fn tag_ids(tags: [Option<Id<UserMarker>>; 8]) -> BTreeSet<u64> {
+    tags.iter()
+        .filter_map(|tag| tag.map(|id| id.get()))
+        .collect()
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "balance", desc = "Balance a Quake Champions lobby")]
+pub struct BalanceCommand {
+    #[command(desc = "Game Mode (defaults to Sacrifice Tournament)")]
+    pub game_mode: Option<GameModeOption>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag1: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag2: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag3: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag4: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag5: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag6: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag7: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag8: Option<Id<UserMarker>>,
+}
+
+#[async_trait]
+impl BotCommand for BalanceCommand {
+    const PERMISSION: Permission = Permission::App;
+    const EPHEMERAL: bool = false;
+    const MUTATING: bool = false;
+
+    /// Post the player-selection message: one toggle button per player found
+    /// in the caller's voice channel or tagged manually, plus Select All and
+    /// Balance! triggers handled as component interactions.
+    async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse> {
+        let guild_id = interaction
+            .guild_id
+            .ok_or(anyhow!("balance outside a guild"))?;
+        let user_id = interaction
+            .author_id()
+            .ok_or(anyhow!("interaction without author"))?;
+        let game_mode: GameMode = self
+            .game_mode
+            .unwrap_or(GameModeOption::SacrificeTournament)
+            .into();
+
+        let manual_entries = tag_ids([
+            self.player_tag1,
+            self.player_tag2,
+            self.player_tag3,
+            self.player_tag4,
+            self.player_tag5,
+            self.player_tag6,
+            self.player_tag7,
+            self.player_tag8,
+        ]);
+
+        let members = user_voice_channel(&bot.cache, guild_id, user_id)
+            .map(|channel_id| voice_channel_members(&bot.cache, channel_id))
+            .unwrap_or_default();
+
+        let found_players: BTreeSet<u64> = manual_entries
+            .iter()
+            .chain(members.iter())
+            .copied()
+            .collect();
+
+        let (players, unregistered_names) =
+            named_elos(bot, guild_id, game_mode, &found_players).await;
+
+        let mut buttons: Vec<_> = players
+            .iter()
+            .map(|player| {
+                button(
+                    ButtonStyle::Secondary,
+                    format!("toggle-primary-secondary/{}", player.id),
+                    player.name.clone(),
+                )
+                .into()
+            })
+            .collect();
+        buttons.push(
+            button(
+                ButtonStyle::Danger,
+                "select-all-primary-secondary",
+                "Select All",
+            )
+            .into(),
+        );
+        buttons.push(
+            button(
+                ButtonStyle::Success,
+                format!("balance!/{}", game_mode.name()),
+                "Balance!",
+            )
+            .into(),
+        );
+
+        let mut content_lines = Vec::new();
+        if !unregistered_names.is_empty() {
+            content_lines.push(format!(
+                "Unregistered Users: {}",
+                unregistered_names.join(", ")
+            ));
+        }
+        content_lines.push(format!("Balancing for {}", game_mode.name()));
+
+        Ok(HandleResponse {
+            response: Some(
+                InteractionResponseDataBuilder::new()
+                    .content(content_lines.join("\n"))
+                    .components(build_components_action_rows(buttons))
+                    .build(),
+            ),
+            log_detail: None,
+        })
+    }
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "divide", desc = "Divide hub inhabitants to other lobbies")]
+pub struct DivideCommand {
+    #[command(desc = "Game Mode (defaults to Sacrifice Tournament)")]
+    pub game_mode: Option<GameModeOption>,
+    #[command(desc = "Sort players before dividing them")]
+    pub sort_by: Option<SortMethodOption>,
+    #[command(desc = "Manually tag discord user as a spectator")]
+    pub spectator_tag1: Option<Id<UserMarker>>,
+    #[command(desc = "Manually tag discord user as a spectator")]
+    pub spectator_tag2: Option<Id<UserMarker>>,
+    #[command(desc = "Manually tag discord user as a spectator")]
+    pub spectator_tag3: Option<Id<UserMarker>>,
+    #[command(desc = "Manually tag discord user as a spectator")]
+    pub spectator_tag4: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag1: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag2: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag3: Option<Id<UserMarker>>,
+    #[command(desc = "Manually add tagged discord user to lobby")]
+    pub player_tag4: Option<Id<UserMarker>>,
+}
+
+#[async_trait]
+impl BotCommand for DivideCommand {
+    const PERMISSION: Permission = Permission::App;
+    const EPHEMERAL: bool = false;
+    const MUTATING: bool = false;
+
+    async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse> {
+        let guild_id = interaction
+            .guild_id
+            .ok_or(anyhow!("divide outside a guild"))?;
+        let user_id = interaction
+            .author_id()
+            .map(|id| id.get())
+            .ok_or(anyhow!("interaction without author"))?;
+
+        let sort_method: SortMethod = self.sort_by.unwrap_or(SortMethodOption::Random).into();
+        let ignored_players = tag_ids([
+            self.spectator_tag1,
+            self.spectator_tag2,
+            self.spectator_tag3,
+            self.spectator_tag4,
+            None,
+            None,
+            None,
+            None,
+        ]);
+        let manual_entries = tag_ids([
+            self.player_tag1,
+            self.player_tag2,
+            self.player_tag3,
+            self.player_tag4,
+            None,
+            None,
+            None,
+            None,
+        ]);
+
+        let response = divide_hub(
+            bot,
+            guild_id,
+            user_id,
+            self.game_mode
+                .unwrap_or(GameModeOption::SacrificeTournament)
+                .into(),
+            sort_method,
+            &manual_entries,
+            &ignored_players,
+        )
+        .await?;
+        Ok(HandleResponse {
+            response: Some(response),
+            log_detail: None,
+        })
+    }
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "backup-db", desc = "Backup DB to github")]
+pub struct BackupDbCommand {}
+
+#[async_trait]
+impl BotCommand for BackupDbCommand {
+    const PERMISSION: Permission = Permission::Owner;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
+
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let github_config = bot
+            .github_config
+            .as_ref()
+            .ok_or(anyhow!("no github config"))?;
+        let json = bot.db.read().await.to_json()?;
+        upload_bytes_to_github(
+            &json.into(),
+            &github_config.owner,
+            &github_config.repo,
+            &github_config.path,
+            &github_config.branch,
+        )
+        .await?;
+        Ok(HandleResponse {
+            response: Some(text_response(format!(
+                "https://raw.githubusercontent.com/{}/{}/{}/{}",
+                github_config.owner, github_config.repo, github_config.branch, github_config.path
+            ))),
+            log_detail: None,
+        })
+    }
+}
+
+#[derive(CommandModel, CreateCommand, Debug)]
+#[command(name = "restore-db-backup", desc = "Restore DB from github")]
+pub struct RestoreDBBackupCommand {}
+
+#[async_trait]
+impl BotCommand for RestoreDBBackupCommand {
+    const PERMISSION: Permission = Permission::Owner;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
+
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let github_config = bot
+            .github_config
+            .as_ref()
+            .ok_or(anyhow!("no github config"))?;
+        let bytes = get_bytes_from_github(
+            &github_config.owner,
+            &github_config.repo,
+            &github_config.path,
+            &github_config.branch,
+        )
+        .await?;
+        let restored = Db::from_json(&bytes)?;
+        *bot.db.write().await = restored;
+        Ok(HandleResponse {
+            response: Some(text_response("DB restored from backup")),
+            log_detail: None,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::registrations;
+    use std::collections::HashSet;
+
+    /// Guards the registry now that the macro's compile-time name check is gone:
+    /// every registered command's wire name must be non-empty and unique.
+    #[test]
+    fn command_names_unique_and_nonempty() {
+        let mut seen = HashSet::new();
+        for (_, command) in registrations() {
+            assert!(!command.name.is_empty(), "command has an empty name");
+            assert!(
+                seen.insert(command.name.clone()),
+                "duplicate command name: {}",
+                command.name
+            );
+        }
+    }
+}
