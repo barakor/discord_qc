@@ -48,7 +48,5 @@
             elo-maps   (map get-players-elo discord-ids)
 
             embed-msg (balance-teams-embed game-mode elo-maps)]
-        (discord-rest/create-message! (:rest @state*)
-                                      channel-id :message-reference
-                                      {:message-id msg-id "message_id" msg-id}
-                                      :embeds embed-msg)))))
+        (discord-rest/create-message! (:rest @state*) channel-id :message-reference {:message-id msg-id 
+         "message_id" msg-id} :embeds embed-msg)))))

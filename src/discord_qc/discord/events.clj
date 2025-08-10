@@ -1,7 +1,5 @@
 (ns discord-qc.discord.events
   (:require
-   [tapestry.core :refer [fiber]]
-
    [discljord.connections :as discord-ws]
    [slash.core :as sc]
    [discljord.events.state :as discord-state]
@@ -12,18 +10,14 @@
 
    ; [taoensso.timbre :as timbre :refer [log]]
    [taoensso.telemere.timbre :refer [log]]
-
    [com.rpl.specter :as s]))
 
-
-
-
-(defmulti handle-event-method
+(defmulti handle-event
   "Event handling multi method. Dispatches on the type of the event."
   (fn [type _data] type))
 
-(defmethod handle-event-method :message-create [_ {:keys [channel-id author embeds mentions]
-                                                   :as event-data}]
+(defmethod handle-event :message-create [_ {:keys [channel-id author embeds mentions]
+                                            :as event-data}]
   (try
     (when (and (not-empty embeds) (re-find (re-pattern "has started") (get (first embeds) :title "")))
       (log :debug (str "Got A potential pubobot message: " event-data))
@@ -31,19 +25,19 @@
     (catch Exception e (log :error (str "Couldn't parse message: " e)))))
   ; does nothing rn
 
-(defmethod handle-event-method :ready
+(defmethod handle-event :ready
   [_ _]
   (discord-ws/status-update! (:gateway @state*) :activity (discord-ws/create-activity :name (:playing config))))
   ;take easter egg from other bot and make quake role every where, manage quake role here instead (integrate them?)
 
-(defmethod handle-event-method :default [type data])
+(defmethod handle-event :default [type data])
 
-(defmethod handle-event-method :interaction-create
+(defmethod handle-event :interaction-create
   [_ event-data]
   (sc/route-interaction interaction-handlers event-data))
 
 ;; get's fill in data from discord on connect with the current state of the server, including voice-states 
-(defmethod handle-event-method :guild-create [type data]
+(defmethod handle-event :guild-create [type data]
   (let [register-user-voice-channel (fn [{:keys [channel-id user-id]}]
                                       (swap! discord-state*
                                              update-in [:voice-channels channel-id]
@@ -56,11 +50,6 @@
     (doall (map #(swap! discord-state* assoc-in [:voice-channels %] #{}) voice-channels-ids))
     (doall (map register-user-voice-channel voice-channels-users))
     (log :debug (select-keys (:voice-channels @discord-state*) voice-channels-ids))))
-
-
-(defn hadnle-event [type data]
-  (fiber (handle-event-method type data)))
-
 
 ;; diff update of voice states
 (defn voice-state-channel-update [_ {:keys [user-id guild-id channel-id]
