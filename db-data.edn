@@ -21,9 +21,11 @@
    "440486283236737026"
    "493773012898676736"
    "1098266412742619276"
+   "134859595465097216"
    "1230928197361860658"
    "150145779363872769"
    "241351302318260224"
+   "359042365970710538"
    "529799354752565250"
    "1200108422503342110"
    "258842880762839043"
@@ -83,8 +85,10 @@
    "465583503925313536"
    "163337136622403584"
    "404683179060887552"
+   "271293907550076938"
    "582468724993425424"
    "237229259544985600"
+   "315951037188014082"
    "249196408211636225"
    "267312157060759554"
    "270654581279555585"
@@ -125,6 +129,7 @@
    "1099016966452293662"
    "280903639558651904"
    "323975549578117120"
+   "1007400834138636442"
    "196842008793448448"
    "148269872286138369"
    "353203032005017603"
@@ -217,6 +222,7 @@
    "314077439481348096"
    "515309275325792277"
    "446078369726201856"
+   "826152999847723058"
    "531616751348350986"
    "297475272788279296"
    "510553251649814550"
@@ -229,6 +235,7 @@
    "1063365905876275260"
    "977766974971060224"
    "223890521293193217"
+   "1071653390322503700"
    "801218897788928012"
    "813850203068563467"
    "282530834102222848"
@@ -245,6 +252,19 @@
    "108022049053659136"
    "145279562455056384"
    "171632429310672896"},
+ "discord-id->elo-map/1007400834138636442"
+ {:quake-name "GunGamer54001",
+  :killing 5.0,
+  :tdm 5.0,
+  :sacrifice-tournament 1.0,
+  :instagib 5.0,
+  :slipgate 5.0,
+  :duel 5.0,
+  :ctf 5.0,
+  :ffa 5.0,
+  :sacrifice 5.0,
+  :objective 5.0,
+  :tdm-2v2 5.0},
  "discord-id->elo-map/1022935988672147538"
  {:quake-name "thegreatguin",
   :killing 2.111381101608276,
@@ -286,6 +306,19 @@
   :sacrifice 6.015227,
   :objective 6.562020937601726,
   :tdm-2v2 1.8100033},
+ "discord-id->elo-map/1071653390322503700"
+ {:quake-name "JimmyJazz11090",
+  :killing 2.5,
+  :tdm 2.5,
+  :sacrifice-tournament 2.0,
+  :instagib 2.5,
+  :slipgate 2.5,
+  :duel 2.5,
+  :ctf 2.5,
+  :ffa 2.5,
+  :sacrifice 2.5,
+  :objective 2.5,
+  :tdm-2v2 2.5},
  "discord-id->elo-map/108022049053659136"
  {:quake-name "psygib",
   :killing 4.414532581965129,
@@ -564,6 +597,19 @@
   :sacrifice 7.23717,
   :objective 6.266671816507976,
   :tdm-2v2 1.5459962},
+ "discord-id->elo-map/134859595465097216"
+ {:quake-name "pthy",
+  :killing 6.5,
+  :tdm 6.5,
+  :sacrifice-tournament 4.5,
+  :instagib 6.5,
+  :slipgate 6.5,
+  :duel 6.5,
+  :ctf 6.5,
+  :ffa 6.5,
+  :sacrifice 6.5,
+  :objective 6.5,
+  :tdm-2v2 6.5},
  "discord-id->elo-map/138277207784161280"
  {:quake-name "alek",
   :killing 3.897185516357422,
@@ -1490,11 +1536,11 @@
   :objective 6.013824939727783,
   :tdm-2v2 0.0},
  "discord-id->elo-map/253327298617540609"
- {:quake-name "t0ne5",
+ {:quake-name "t0nez",
   :killing 2.995489072799683,
   :ranked-duel 0.0,
   :tdm 2.0849574,
-  :sacrifice-tournament 3.7797098,
+  :sacrifice-tournament 5.0,
   :instagib 5.0355697,
   :slipgate 2.684425,
   :duel 0.4479771,
@@ -1643,6 +1689,19 @@
   :sacrifice 14.473581,
   :objective 12.733795166015625,
   :tdm-2v2 2.9553592},
+ "discord-id->elo-map/271293907550076938"
+ {:quake-name "UnheiligeBug",
+  :killing 3.5,
+  :tdm 3.5,
+  :sacrifice-tournament 3.5,
+  :instagib 3.5,
+  :slipgate 3.5,
+  :duel 3.5,
+  :ctf 3.5,
+  :ffa 3.5,
+  :sacrifice 3.5,
+  :objective 3.5,
+  :tdm-2v2 3.5},
  "discord-id->elo-map/277900990684856330"
  {:quake-name "gamr0k",
   :killing 2.3931068658828734,
@@ -1866,6 +1925,19 @@
   :sacrifice 4.2482834,
   :objective 4.431105216344197,
   :tdm-2v2 1.2235314},
+ "discord-id->elo-map/315951037188014082"
+ {:quake-name "LevyLandTv",
+  :killing 5.0,
+  :tdm 5.0,
+  :sacrifice-tournament 5.0,
+  :instagib 5.0,
+  :slipgate 5.0,
+  :duel 5.0,
+  :ctf 5.0,
+  :ffa 5.0,
+  :sacrifice 5.0,
+  :objective 5.0,
+  :tdm-2v2 5.0},
  "discord-id->elo-map/316364185430917122"
  {:quake-name "fskt",
   :killing 4.185086631774903,
@@ -1881,7 +1953,7 @@
   :objective 6.932048479715983,
   :tdm-2v2 1.5465875},
  "discord-id->elo-map/316460992433356810"
- {:quake-name "ds9 n33l1x",
+ {:quake-name "N33L1X",
   :killing 2.303604578971863,
   :ranked-duel 0.0,
   :tdm 1.8889204,
@@ -1899,7 +1971,7 @@
   :killing 2.989936637878418,
   :ranked-duel 0.0,
   :tdm 2.4444242,
-  :sacrifice-tournament 4.6951942,
+  :sacrifice-tournament 5.7,
   :instagib 5.7429557,
   :slipgate 1.1294062,
   :duel 0.73053277,
@@ -1929,7 +2001,7 @@
   :tdm 2.9633288,
   :sacrifice-tournament 6.162538,
   :instagib 5.122971,
-  :slipgate 4.4127393,
+  :slipgate 9999.0,
   :duel 1.4429188,
   :ctf 8.614142,
   :ffa 2.0258543,
@@ -1963,7 +2035,7 @@
   :objective 7.0,
   :tdm-2v2 7.0},
  "discord-id->elo-map/326037853979017216"
- {:quake-name "lutiki t41fun",
+ {:quake-name "T41fun",
   :killing 4.618637990951538,
   :ranked-duel 0.0,
   :tdm 3.0620532,
@@ -2156,6 +2228,19 @@
   :sacrifice 9.683023,
   :objective 9.781862258911133,
   :tdm-2v2 2.3651083},
+ "discord-id->elo-map/359042365970710538"
+ {:quake-name "ToxxyTheTrash",
+  :killing 4.5,
+  :tdm 4.5,
+  :sacrifice-tournament 4.1,
+  :instagib 4.5,
+  :slipgate 4.5,
+  :duel 4.5,
+  :ctf 4.5,
+  :ffa 4.5,
+  :sacrifice 4.5,
+  :objective 4.5,
+  :tdm-2v2 4.5},
  "discord-id->elo-map/361508622305591297"
  {:quake-name "kilobit64",
   :killing 2.891369104385376,
@@ -2578,7 +2663,7 @@
   :killing 3.3136982679367066,
   :ranked-duel 0.0,
   :tdm 2.2652862,
-  :sacrifice-tournament 4.9261975,
+  :sacrifice-tournament 5.9,
   :instagib 6.736431,
   :slipgate 3.1469116,
   :duel 0.6107304,
@@ -2786,7 +2871,7 @@
   :killing 3.693309998512268,
   :ranked-duel 0.0,
   :tdm 2.75208,
-  :sacrifice-tournament 2.3315797,
+  :sacrifice-tournament 5.5,
   :instagib 7.23744,
   :slipgate 2.9616034,
   :duel 0.6244309,
@@ -3258,7 +3343,7 @@
  {:quake-name "tywhip",
   :killing 5.0,
   :tdm 5.0,
-  :sacrifice-tournament 6.5,
+  :sacrifice-tournament 5.85,
   :instagib 5.0,
   :slipgate 5.0,
   :duel 5.0,
@@ -3296,6 +3381,19 @@
   :tdm-2v2 6.9},
  "discord-id->elo-map/81932589698383872"
  {:quake-name "k0mbit",
+  :killing 5.0,
+  :tdm 5.0,
+  :sacrifice-tournament 5.0,
+  :instagib 5.0,
+  :slipgate 5.0,
+  :duel 5.0,
+  :ctf 5.0,
+  :ffa 5.0,
+  :sacrifice 5.0,
+  :objective 5.0,
+  :tdm-2v2 5.0},
+ "discord-id->elo-map/826152999847723058"
+ {:quake-name "lutiki woz",
   :killing 5.0,
   :tdm 5.0,
   :sacrifice-tournament 5.0,
