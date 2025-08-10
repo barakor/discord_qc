@@ -1,3 +1,4 @@
+mod balancing;
 mod config_handler;
 mod db_handler;
 mod discord_utils;
