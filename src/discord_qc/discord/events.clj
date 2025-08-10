@@ -58,7 +58,7 @@
     (log :debug (select-keys (:voice-channels @discord-state*) voice-channels-ids))))
 
 
-(defn hadnle-event [type data]
+(defn handle-event [type data]
   (fiber (handle-event-method type data)))
 
 
