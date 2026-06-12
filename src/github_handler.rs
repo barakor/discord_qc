@@ -93,5 +93,5 @@ pub async fn start(github_token: &Option<String>) -> Result<()> {
         set_github_handler_started(true);
     }
 
-    Ok({})
+    Ok(())
 }

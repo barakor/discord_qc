@@ -3,13 +3,18 @@ mod config_handler;
 mod db_handler;
 mod discord_utils;
 mod event_handler;
+mod events;
 mod github_handler;
 mod interactions;
 
 use crate::{
     config_handler::EnvConfig,
     event_handler::{Bot, SHUTDOWN},
-    interactions::command::QueryCommand,
+    interactions::command::{
+        AdjustCommand, BackupDbCommand, BalanceCommand, DBStatsCommand, DivideCommand,
+        ListAdminsCommand, MakeAdminCommand, QueryCommand, RegisterCommand, RenameCommand,
+        RenameOtherCommand, RestoreDBBackupCommand,
+    },
 };
 use anyhow::Result;
 use event_handler::runner;
@@ -46,7 +51,12 @@ async fn boot_shards(config: &EnvConfig) -> Result<(Client, Vec<Shard>)> {
     let token = config.discord_token.clone();
     // Initialize the tracing subscriber.
 
-    let intents = Intents::GUILD_PRESENCES | Intents::GUILDS | Intents::GUILD_MEMBERS;
+    let intents = Intents::GUILD_PRESENCES
+        | Intents::GUILDS
+        | Intents::GUILD_MEMBERS
+        | Intents::GUILD_VOICE_STATES
+        | Intents::GUILD_MESSAGES
+        | Intents::MESSAGE_CONTENT;
     let client = Client::new(token.clone());
     let config = ConfigBuilder::new(token, intents)
         .presence(bot_presence("Rolling Roles".into()))
@@ -82,22 +92,44 @@ async fn main() -> Result<()> {
     tracing::info!("logged as {} with ID {}", application.name, application.id);
     let interaction_client = client.interaction(application.id);
 
+    // App + admin commands everywhere; owner commands (make-admin, and later
+    // backup/restore) only in the home guild — mirrors the Clojure registration.
+    let app_and_admin_commands = [
+        QueryCommand::create_command().into(),
+        RenameCommand::create_command().into(),
+        BalanceCommand::create_command().into(),
+        DivideCommand::create_command().into(),
+        RegisterCommand::create_command().into(),
+        RenameOtherCommand::create_command().into(),
+        AdjustCommand::create_command().into(),
+        DBStatsCommand::create_command().into(),
+        ListAdminsCommand::create_command().into(),
+    ];
+    let owner_commands = [
+        MakeAdminCommand::create_command().into(),
+        BackupDbCommand::create_command().into(),
+        RestoreDBBackupCommand::create_command().into(),
+    ];
+
+    let guild_commands: Vec<_> = app_and_admin_commands
+        .iter()
+        .cloned()
+        .chain(owner_commands)
+        .collect();
+
     interaction_client
-        .set_guild_commands(
-            Id::new(1104894380080365710),
-            &[QueryCommand::create_command().into()],
-        )
+        .set_guild_commands(Id::new(1104894380080365710), &guild_commands)
         .await?;
 
     interaction_client
-        .set_global_commands(&[QueryCommand::create_command().into()])
+        .set_global_commands(&app_and_admin_commands)
         .await?;
 
     let mut senders = Vec::with_capacity(shards.len());
     let mut tasks = Vec::with_capacity(shards.len());
 
     tracing::debug!("Spawned Shards: {}", &shards.len());
-    let bot = Arc::new(Bot::new(Arc::new(client), config.github_config).await);
+    let bot = Arc::new(Bot::new(Arc::new(client), config.github_config, config.db_path).await);
 
     for shard in shards {
         senders.push(shard.sender());
@@ -115,7 +147,7 @@ async fn main() -> Result<()> {
         _ = jh.await;
     }
 
-    Ok({})
+    Ok(())
 }
 
 pub fn bot_presence(activity: String) -> UpdatePresencePayload {
@@ -140,6 +172,8 @@ mod tests {
     use crate::config_handler::get_testing_config;
     use twilight_gateway::{Event, EventTypeFlags, StreamExt as _};
 
+    // Manual smoke test: needs DISCORD_TESTING_TOKEN and blocks until ctrl-c.
+    #[ignore]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn start_2nd_bot_with_activity() {
         let config = get_testing_config().unwrap();

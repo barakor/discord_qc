@@ -42,7 +42,10 @@ impl GithubConfig {
 pub struct EnvConfig {
     pub discord_token: String,
     pub github_config: Option<GithubConfig>,
+    pub db_path: String,
 }
+
+const DEFAULT_DB_PATH: &str = "db.json";
 
 impl EnvConfig {
     pub fn new() -> Result<Self, Error> {
@@ -50,6 +53,7 @@ impl EnvConfig {
         Ok(Self {
             discord_token: env::var("DISCORD_TOKEN")?,
             github_config: GithubConfig::new().ok(),
+            db_path: env::var("DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string()),
         })
     }
 }
@@ -61,6 +65,7 @@ pub fn get_testing_config() -> Result<EnvConfig, Error> {
     Ok(EnvConfig {
         discord_token: env::var("DISCORD_TESTING_TOKEN")?,
         github_config: GithubConfig::new().ok(),
+        db_path: env::var("DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string()),
     })
 }
 
