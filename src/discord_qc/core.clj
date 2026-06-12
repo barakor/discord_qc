@@ -26,7 +26,7 @@
   (log :info intents)
   (let [caching (caching-transducer discord-state* caching-handlers)
         event-channel (chan (async/sliding-buffer 100000) caching)
-        gateway-connection (discord-ws/connect-bot! token event-channel :intents intents)
+        gateway-connection (discord-ws/connect-bot! token event-channel :intents intents :disable-compression true)
         rest-connection (discord-rest/start-connection! token)]
 
     {:events  event-channel
