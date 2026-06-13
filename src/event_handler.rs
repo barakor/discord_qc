@@ -5,6 +5,7 @@ use crate::{
         interaction_ack, interaction_end, interaction_response, interaction_update_ack,
     },
     events::pubobot::balance_pubobot_queue,
+    github_handler::upload_bytes_to_github,
     interactions::{
         command::{
             AdjustCommand, BackupDbCommand, BalanceCommand, DBStatsCommand, DivideCommand,
@@ -73,7 +74,7 @@ impl Bot {
                 .resource_types(ResourceType::all())
                 .build(),
         );
-        let db = Db::load(&db_path).await;
+        let db = Db::boot(&db_path, github_config.as_ref()).await;
         tracing::info!(
             players = db.elos.len(),
             admins = db.admins.len(),
@@ -94,6 +95,37 @@ impl Bot {
     pub async fn persist_db(&self) -> Result<()> {
         let db = self.db.read().await;
         db.save(&self.db_path).await
+    }
+
+    /// Fire a best-effort GitHub backup in the background. Off the command
+    /// response path: failures are logged, never surfaced to the user. Pushes
+    /// are rare (admin-triggered mutations), so SHA conflicts between racing
+    /// pushes are tolerated — the next mutation reconciles.
+    fn spawn_github_backup(&self) {
+        let Some(config) = self.github_config.clone() else {
+            return;
+        };
+        let db = self.db.clone();
+        tokio::spawn(async move {
+            let bytes = match db.read().await.to_json() {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    tracing::error!(?e, "failed to serialize db for github backup");
+                    return;
+                }
+            };
+            if let Err(e) = upload_bytes_to_github(
+                &bytes.into(),
+                &config.owner,
+                &config.repo,
+                &config.path,
+                &config.branch,
+            )
+            .await
+            {
+                tracing::error!(?e, "background github backup failed");
+            }
+        });
     }
 
     /// Function to eat up an event and decide how to handle it
@@ -207,11 +239,11 @@ impl Bot {
             name => bail!("unknown command: {}", name),
         };
 
-        if response.is_ok()
-            && MUTATING_COMMANDS.contains(&&*command_name)
-            && let Err(e) = self.persist_db().await
-        {
-            tracing::error!(?e, "failed to persist db after {}", command_name);
+        if response.is_ok() && MUTATING_COMMANDS.contains(&&*command_name) {
+            if let Err(e) = self.persist_db().await {
+                tracing::error!(?e, "failed to persist db after {}", command_name);
+            }
+            self.spawn_github_backup();
         }
 
         match response {

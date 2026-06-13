@@ -1,7 +1,11 @@
+use crate::{config_handler::GithubConfig, github_handler::get_bytes_from_github};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
-use tokio::fs;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
+use tokio::{fs, io::AsyncWriteExt};
 use twilight_model::{
     channel::message::embed::EmbedField, http::interaction::InteractionResponseData,
 };
@@ -233,27 +237,104 @@ impl Db {
         Ok(serde_json::to_vec_pretty(self)?)
     }
 
-    /// Load from disk; a missing or unreadable file yields an empty Db.
-    pub async fn load(path: &str) -> Self {
-        match fs::read(path).await {
-            Ok(bytes) => match Self::from_json(&bytes) {
-                Ok(db) => db,
-                Err(e) => {
-                    tracing::error!(?e, path, "failed to parse db file, starting empty");
-                    Self::default()
+    /// Boot the db, using GitHub as a backstop. Local file is the primary
+    /// source; if it is missing or corrupt, fall back to the GitHub backup and
+    /// write it back locally. If both fail, start empty.
+    pub async fn boot(path: &str, github_config: Option<&GithubConfig>) -> Self {
+        let local = fs::read(path).await.ok();
+
+        // Happy path: a valid local file wins, no network needed.
+        if let Some(bytes) = &local {
+            if let Ok(db) = Self::from_json(bytes) {
+                tracing::info!(path, "loaded db from local file");
+                return db;
+            }
+            tracing::error!(path, "local db file is corrupt, trying github backstop");
+        } else {
+            tracing::warn!(path, "no local db file, trying github backstop");
+        }
+
+        let remote = match github_config {
+            Some(config) => {
+                get_bytes_from_github(&config.owner, &config.repo, &config.path, &config.branch)
+                    .await
+                    .map_err(|e| tracing::error!(?e, "failed to fetch github backstop"))
+                    .ok()
+            }
+            None => None,
+        };
+
+        match decide_load(local.as_deref(), remote.as_deref()) {
+            LoadOutcome::Local(db) => db,
+            LoadOutcome::Remote(db) => {
+                tracing::info!("restored db from github backstop");
+                if let Err(e) = db.save(path).await {
+                    tracing::error!(?e, path, "failed to write restored db locally");
                 }
-            },
-            Err(e) => {
-                tracing::warn!(?e, path, "no db file, starting empty");
+                db
+            }
+            LoadOutcome::Empty => {
+                tracing::warn!("no usable db source, starting empty");
                 Self::default()
             }
         }
     }
 
+    /// Atomically persist to disk: write a temp file, fsync it, then rename
+    /// over the target. The rename is atomic on the same filesystem, so a
+    /// power loss leaves either the old file or the new one — never a
+    /// truncated mix. The parent directory is fsynced so the rename survives.
     pub async fn save(&self, path: &str) -> Result<()> {
-        fs::write(path, self.to_json()?).await?;
+        let bytes = self.to_json()?;
+        let tmp_path = format!("{path}.tmp");
+
+        let mut file = fs::File::create(&tmp_path).await?;
+        file.write_all(&bytes).await?;
+        file.sync_all().await?;
+        drop(file);
+
+        fs::rename(&tmp_path, path).await?;
+
+        if let Some(parent) = Path::new(path)
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+        {
+            let parent = parent.to_path_buf();
+            // Opening a directory and fsyncing it is blocking; keep it off the
+            // async worker. Best-effort — durability hardening, not correctness.
+            let _ = tokio::task::spawn_blocking(move || {
+                if let Ok(dir) = std::fs::File::open(&parent) {
+                    let _ = dir.sync_all();
+                }
+            })
+            .await;
+        }
         Ok(())
     }
+}
+
+/// Which source `boot` ended up using. Kept separate from the async I/O so the
+/// decision is unit-testable without a filesystem or network.
+#[derive(Debug)]
+pub enum LoadOutcome {
+    Local(Db),
+    Remote(Db),
+    Empty,
+}
+
+/// Prefer a parseable local file, then a parseable remote backup, else empty.
+pub fn decide_load(local: Option<&[u8]>, remote: Option<&[u8]>) -> LoadOutcome {
+    if let Some(bytes) = local
+        && let Ok(db) = Db::from_json(bytes)
+    {
+        return LoadOutcome::Local(db);
+    }
+    if let Some(bytes) = remote
+        && let Ok(db) = Db::from_json(bytes)
+    {
+        return LoadOutcome::Remote(db);
+    }
+    LoadOutcome::Empty
 }
 
 #[cfg(test)]
@@ -270,7 +351,7 @@ mod tests {
         db.admins.insert(7);
         db.save(path).await.unwrap();
 
-        let loaded = Db::load(path).await;
+        let loaded = Db::boot(path, None).await;
         assert_eq!(loaded.elos.get(&42).unwrap().quake_name, "rapha");
         assert_eq!(loaded.elos.get(&42).unwrap().duel, DEFAULT_SCORE);
         assert!(loaded.admins.contains(&7));
@@ -280,9 +361,60 @@ mod tests {
 
     #[tokio::test]
     async fn missing_db_file_loads_empty() {
-        let db = Db::load("/nonexistent/discord_qc_db.json").await;
+        let db = Db::boot("/nonexistent/discord_qc_db.json", None).await;
         assert!(db.elos.is_empty());
         assert!(db.admins.is_empty());
+    }
+
+    #[tokio::test]
+    async fn atomic_save_overwrites_and_leaves_no_tmp() {
+        let path = std::env::temp_dir().join("discord_qc_atomic_test.json");
+        let path = path.to_str().unwrap();
+        let tmp = format!("{path}.tmp");
+
+        let mut first = Db::default();
+        first.admins.insert(1);
+        first.save(path).await.unwrap();
+
+        // Overwrite with different content; the read-back must be the new state.
+        let mut second = Db::default();
+        second.admins.insert(2);
+        second.save(path).await.unwrap();
+
+        let loaded = Db::boot(path, None).await;
+        assert!(loaded.admins.contains(&2));
+        assert!(!loaded.admins.contains(&1));
+        assert!(!Path::new(&tmp).exists(), "temp file must be renamed away");
+
+        tokio::fs::remove_file(path).await.unwrap();
+    }
+
+    #[test]
+    fn decide_load_prefers_local_then_remote_then_empty() {
+        let good = Db::default().to_json().unwrap();
+        let corrupt = b"{ not json";
+
+        // valid local wins, remote ignored
+        assert!(matches!(
+            decide_load(Some(&good), Some(corrupt)),
+            LoadOutcome::Local(_)
+        ));
+        // corrupt local falls through to valid remote
+        assert!(matches!(
+            decide_load(Some(corrupt), Some(&good)),
+            LoadOutcome::Remote(_)
+        ));
+        // missing local, valid remote
+        assert!(matches!(
+            decide_load(None, Some(&good)),
+            LoadOutcome::Remote(_)
+        ));
+        // nothing usable
+        assert!(matches!(
+            decide_load(Some(corrupt), Some(corrupt)),
+            LoadOutcome::Empty
+        ));
+        assert!(matches!(decide_load(None, None), LoadOutcome::Empty));
     }
 
     #[test]
