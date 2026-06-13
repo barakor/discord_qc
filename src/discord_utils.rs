@@ -359,3 +359,218 @@ pub fn str_to_id(s: &str) -> Result<u64> {
         .parse::<u64>()
         .map_err(|_| anyhow::anyhow!("Invalid ID: {}", s))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use twilight_cache_inmemory::ResourceType;
+    use twilight_model::{
+        channel::Channel,
+        gateway::payload::incoming::{ChannelCreate, MemberAdd, VoiceStateUpdate},
+        guild::Member,
+        voice::VoiceState,
+    };
+
+    fn cache() -> InMemoryCache {
+        InMemoryCache::builder()
+            .resource_types(ResourceType::all())
+            .build()
+    }
+
+    /// Feed a guild voice channel into the cache.
+    fn add_voice_channel(
+        cache: &InMemoryCache,
+        id: u64,
+        guild: u64,
+        parent: u64,
+        position: i32,
+        name: &str,
+    ) {
+        let channel: Channel = serde_json::from_value(json!({
+            "id": id.to_string(),
+            "type": 2, // GuildVoice
+            "guild_id": guild.to_string(),
+            "parent_id": parent.to_string(),
+            "position": position,
+            "name": name,
+        }))
+        .expect("valid channel json");
+        cache.update(&ChannelCreate(channel));
+    }
+
+    /// Put a user into a voice channel.
+    fn add_voice_state(cache: &InMemoryCache, guild: u64, channel: u64, user: u64) {
+        let state: VoiceState = serde_json::from_value(json!({
+            "channel_id": channel.to_string(),
+            "guild_id": guild.to_string(),
+            "user_id": user.to_string(),
+            "session_id": "session",
+            "deaf": false,
+            "mute": false,
+            "self_deaf": false,
+            "self_mute": false,
+            "self_video": false,
+            "suppress": false,
+            "request_to_speak_timestamp": null,
+        }))
+        .expect("valid voice state json");
+        cache.update(&VoiceStateUpdate(state));
+    }
+
+    fn add_member(
+        cache: &InMemoryCache,
+        guild: u64,
+        user: u64,
+        nick: Option<&str>,
+        username: &str,
+    ) {
+        let member: Member = serde_json::from_value(json!({
+            "user": { "id": user.to_string(), "username": username, "discriminator": "0001" },
+            "nick": nick,
+            "roles": [],
+            "joined_at": "2020-01-01T00:00:00.000000+00:00",
+            "deaf": false,
+            "mute": false,
+            "flags": 0,
+        }))
+        .expect("valid member json");
+        cache.update(&MemberAdd {
+            guild_id: Id::new(guild),
+            member,
+        });
+    }
+
+    #[test]
+    fn voice_members_and_user_channel_from_cache() {
+        let cache = cache();
+        let (guild, hub, other) = (1, 100, 200);
+        add_voice_state(&cache, guild, hub, 1001);
+        add_voice_state(&cache, guild, hub, 1002);
+        add_voice_state(&cache, guild, other, 1003);
+
+        let mut members = voice_channel_members(&cache, Id::new(hub));
+        members.sort();
+        assert_eq!(members, vec![1001, 1002]);
+
+        assert_eq!(
+            user_voice_channel(&cache, Id::new(guild), Id::new(1001)),
+            Some(Id::new(hub))
+        );
+        assert_eq!(
+            user_voice_channel(&cache, Id::new(guild), Id::new(1003)),
+            Some(Id::new(other))
+        );
+        // user not in any voice channel
+        assert_eq!(
+            user_voice_channel(&cache, Id::new(guild), Id::new(9999)),
+            None
+        );
+    }
+
+    #[test]
+    fn siblings_skip_hub_and_pair_by_position() {
+        let cache = cache();
+        let (guild, category) = (1, 50);
+        // hub at position 0, then four lobbies; out-of-order positions to prove sorting
+        add_voice_channel(&cache, 100, guild, category, 0, "Hub");
+        add_voice_channel(&cache, 102, guild, category, 2, "Lobby B");
+        add_voice_channel(&cache, 101, guild, category, 1, "Lobby A");
+        add_voice_channel(&cache, 104, guild, category, 4, "Lobby D");
+        add_voice_channel(&cache, 103, guild, category, 3, "Lobby C");
+        // a voice channel in a different category must be excluded
+        add_voice_channel(&cache, 200, guild, 99, 0, "Other Category");
+
+        let pairs = sibling_voice_channel_names(&cache, Id::new(guild), Id::new(100));
+        assert_eq!(
+            pairs,
+            vec![
+                ("Lobby A".to_string(), "Lobby B".to_string()),
+                ("Lobby C".to_string(), "Lobby D".to_string()),
+            ]
+        );
+    }
+
+    fn named(id: u64, name: &str, score: f64) -> NamedElo {
+        NamedElo {
+            id,
+            name: name.to_string(),
+            score,
+        }
+    }
+
+    #[test]
+    fn balance_embed_has_three_options_plus_scores() {
+        // 8 players → C(7,3)=35 splits, embed shows top 3 + the scores field
+        let players: Vec<NamedElo> = (1..=8)
+            .map(|i| named(i, &format!("p{i}"), i as f64))
+            .collect();
+        let embed = balance_teams_embed(GameMode::Ctf, &players);
+
+        assert_eq!(embed.fields.len(), 4);
+        assert_eq!(embed.fields[0].name, "ELO Weighted  Team Option #1");
+        assert_eq!(embed.fields[2].name, "ELO Weighted  Team Option #3");
+        assert_eq!(embed.fields[3].name, "Players ELOs:");
+        assert!(embed.description.unwrap().contains("ctf"));
+        // each option splits 4 vs 4, divider present
+        assert!(embed.fields[0].value.contains("VS"));
+    }
+
+    #[test]
+    fn divide_embed_lobbies_and_spectators() {
+        // 13 players: one lobby of 8 (division_into_lobbies(13)->[8]) wait: 12->[6,6]
+        // use 14 → [8,6], plus 1 spectator passed in, plus odd leftover handling
+        let players: Vec<NamedElo> = (1..=14)
+            .map(|i| named(i, &format!("p{i}"), i as f64))
+            .collect();
+        let lobby_names = vec![
+            ("Alpha".to_string(), "Bravo".to_string()),
+            ("Charlie".to_string(), "Delta".to_string()),
+        ];
+        let embed = divide_hub_embed(GameMode::Tdm, &players, &lobby_names, &["spec1".to_string()]);
+
+        // 14 → [8, 6] = two lobby fields + one spectators field
+        assert_eq!(embed.fields.len(), 3);
+        assert_eq!(embed.fields[0].name, "Alpha VS Bravo");
+        assert_eq!(embed.fields[1].name, "Charlie VS Delta");
+        assert_eq!(embed.fields[2].name, "Spectators");
+        assert!(embed.fields[2].value.contains("spec1"));
+    }
+
+    #[test]
+    fn divide_embed_extra_players_become_spectators() {
+        // 15 players → division_into_lobbies drops odd → [8,6]=14 placed, 1 left over
+        // the leftover must land in spectators
+        let players: Vec<NamedElo> = (1..=15)
+            .map(|i| named(i, &format!("p{i}"), i as f64))
+            .collect();
+        let embed = divide_hub_embed(GameMode::Tdm, &players, &[], &[]);
+
+        let spectators = embed
+            .fields
+            .iter()
+            .find(|f| f.name == "Spectators")
+            .expect("leftover player should produce a spectators field");
+        assert_eq!(spectators.value.split(", ").count(), 1);
+    }
+
+    #[tokio::test]
+    async fn display_name_prefers_nick_then_username() {
+        let cache = cache();
+        let http = Client::new("Bot test".to_string());
+        let guild = 1;
+        add_member(&cache, guild, 1001, Some("NickName"), "username1");
+        add_member(&cache, guild, 1002, None, "UserName2");
+
+        // nick wins, lowercased
+        assert_eq!(
+            get_user_display_name(&cache, &http, Id::new(guild), Id::new(1001)).await,
+            "nickname"
+        );
+        // no nick → username, lowercased
+        assert_eq!(
+            get_user_display_name(&cache, &http, Id::new(guild), Id::new(1002)).await,
+            "username2"
+        );
+    }
+}
