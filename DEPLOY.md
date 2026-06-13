@@ -70,6 +70,29 @@ volumes:
 - Enable the **MESSAGE CONTENT** privileged intent (needed for the pubobot
   listener) or the gateway connection is rejected.
 
+## Webapp (`qc-web` — Leptos score calculator)
+
+Static SPA, no backend. Fetches the same `db.json` the bot pushes to the
+GitHub `db-data` branch (URL in `crates/web/src/main.rs`, `DB_URL`) and computes
+score factors in-browser. Shares the data model with the bot via `qc-core`.
+
+Build/run:
+```bash
+rustup target add wasm32-unknown-unknown   # one-time
+cargo install trunk                        # one-time
+cd crates/web
+trunk serve --open                         # dev
+trunk build --release                      # → crates/web/dist/ (static bundle)
+```
+Compile-check without Trunk:
+`cargo build -p qc-web --target wasm32-unknown-unknown`.
+
+Host the `dist/` output anywhere static — GitHub Pages, or the Pi serving the
+files. The page reads player data straight from GitHub raw; nothing server-side.
+
+Note: never run in a browser yet (no Trunk in the build env) — compiles to wasm
+clean, but verify `trunk serve` + the GitHub fetch once before relying on it.
+
 ## Prerequisite (separate cutover step, not done yet)
 
 - Replace the Clojure Dockerfile (`FROM clojure:temurin-21-lein`, `lein run`)
@@ -79,3 +102,5 @@ volumes:
 - Migrate existing data: export the Clojure RocksDB (EDN on the `db-data`
   branch) → convert to the Rust `db.json` schema → drop at `DB_PATH` or push to
   the GitHub backup branch so the bot restores it on first boot.
+- Retire the ClojureScript webapp (`src/app/`, `src/rewig/`, `shadow-cljs.edn`,
+  `package.json`) — superseded by `crates/web`.

@@ -1,7 +1,7 @@
 use crate::{
     balancing::SortMethod,
     config_handler::GithubConfig,
-    db_handler::{Db, GameMode, PlayerElo},
+    db_handler::{Db, GameMode, PlayerElo, player_elo_embed},
     discord_utils::{
         build_components_action_rows, button, str_to_id, text_response, user_voice_channel,
         voice_channel_members,
@@ -77,7 +77,7 @@ impl QueryCommand {
         let discord_id = str_to_id(&command.discord_id)?;
         let user = db.read().await.elos.get(&discord_id).cloned();
         match user {
-            Some(user) => Ok(Some(user.into())),
+            Some(user) => Ok(Some(player_elo_embed(&user))),
             None => Ok(Some(text_response("couldn't find data for user"))),
         }
     }
@@ -103,7 +103,7 @@ impl RenameCommand {
         match db.elos.get_mut(&user_id) {
             Some(elo) => {
                 elo.quake_name = command.quake_name;
-                Ok(Some(elo.clone().into()))
+                Ok(Some(player_elo_embed(elo)))
             }
             None => Ok(Some(text_response("couldn't find user"))),
         }
@@ -132,7 +132,7 @@ impl RenameOtherCommand {
         match db.elos.get_mut(&discord_id) {
             Some(elo) => {
                 elo.quake_name = command.quake_name;
-                Ok(Some(elo.clone().into()))
+                Ok(Some(player_elo_embed(elo)))
             }
             None => Ok(Some(text_response("couldn't find user"))),
         }
@@ -161,7 +161,7 @@ impl RegisterCommand {
         let discord_id = str_to_id(&command.discord_id)?;
         let elo = PlayerElo::with_score(command.quake_name, command.score);
         db.write().await.elos.insert(discord_id, elo.clone());
-        Ok(Some(elo.into()))
+        Ok(Some(player_elo_embed(&elo)))
     }
 }
 
@@ -189,7 +189,7 @@ impl AdjustCommand {
         match db.elos.get_mut(&discord_id) {
             Some(elo) => {
                 elo.set_score(command.game_mode.into(), command.score);
-                Ok(Some(elo.clone().into()))
+                Ok(Some(player_elo_embed(elo)))
             }
             None => Ok(Some(text_response("couldn't find user"))),
         }

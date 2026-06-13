@@ -527,7 +527,12 @@ mod tests {
             ("Alpha".to_string(), "Bravo".to_string()),
             ("Charlie".to_string(), "Delta".to_string()),
         ];
-        let embed = divide_hub_embed(GameMode::Tdm, &players, &lobby_names, &["spec1".to_string()]);
+        let embed = divide_hub_embed(
+            GameMode::Tdm,
+            &players,
+            &lobby_names,
+            &["spec1".to_string()],
+        );
 
         // 14 → [8, 6] = two lobby fields + one spectators field
         assert_eq!(embed.fields.len(), 3);

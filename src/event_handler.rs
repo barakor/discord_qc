@@ -74,7 +74,7 @@ impl Bot {
                 .resource_types(ResourceType::all())
                 .build(),
         );
-        let db = Db::boot(&db_path, github_config.as_ref()).await;
+        let db = crate::db_handler::boot(&db_path, github_config.as_ref()).await;
         tracing::info!(
             players = db.elos.len(),
             admins = db.admins.len(),
@@ -94,7 +94,7 @@ impl Bot {
     /// Flush the current db state to disk. Call after every mutation.
     pub async fn persist_db(&self) -> Result<()> {
         let db = self.db.read().await;
-        db.save(&self.db_path).await
+        crate::db_handler::save(&db, &self.db_path).await
     }
 
     /// Fire a best-effort GitHub backup in the background. Off the command

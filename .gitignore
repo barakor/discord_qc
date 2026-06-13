@@ -31,3 +31,7 @@ event.json
 # Added by cargo
 
 /target
+
+# Rust / Trunk
+/target
+crates/web/dist/

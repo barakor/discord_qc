@@ -1,9 +1,15 @@
+[workspace]
+members = [".", "crates/core", "crates/web"]
+# Web is WASM-only — keep it out of plain `cargo build`/`cargo test` at the root.
+default-members = [".", "crates/core"]
+
 [package]
 name = "discord_qc"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+qc-core = { path = "crates/core" }
 anyhow = "1.0.98"
 base64 = "0.22.1"
 bytes = "1.10.1"
