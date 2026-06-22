@@ -62,13 +62,15 @@
                    (sort-by val >)
                    (keys)
                    (string/join ", "))
-        team1-txt (str team1 " |  Team ELO: " (format "%.3f" (:team1-elo-sum team-option)))
+        team1-txt (str team1 ;" |  Team ELO: " (format "%.3f" (:team1-elo-sum team-option))
+                       )
         team2 (->> team-option
                    :team2
                    (sort-by val >)
                    (keys)
                    (string/join ", "))
-        team2-txt (str team2 " |  Team ELO: " (format "%.3f" (:team2-elo-sum team-option)))]
+        team2-txt (str team2 ;" |  Team ELO: " (format "%.3f" (:team2-elo-sum team-option))
+                       )]
 
     {:name title :value (str team1-txt divider team2-txt)}))
 
@@ -112,10 +114,11 @@
                [; (format-team-option-msg hybrid-team-option :title-prefix "Hybrid Balance ")
                  ; (format-team-option-msg drafted-team-option :title-prefix "Draft Pick ")
                  ; (format-team-option-msg random-team-option :title-prefix "Random Pick ") ;; dropping it but I am not ready to delete it just yet
-                {:name "Players ELOs:"
-                 :value (string/join ", "
-                                     (map #(str (first %) ": " (format "%.3f" (second %)))
-                                          players-elo-map))}])}]))
+                ;; {:name "Players ELOs:"
+                ;;  :value (string/join ", "
+                ;;                      (map #(str (first %) ": " (format "%.3f" (second %)))
+                ;;                           players-elo-map))}
+                ])}]))
 
 (defn divide-hub-embed [game-mode sort-method elos lobbies-names spectators]
   (let [team-sizes (balancing/division-into-lobbies-opt (count elos))

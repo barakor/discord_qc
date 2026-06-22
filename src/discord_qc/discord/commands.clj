@@ -125,7 +125,8 @@
 
 (def application-commands [rename-command query-command balance-command divide-command])
 
-(def admin-commands [db-stats-command
+(def admin-commands [query-command
+                     db-stats-command
                      register-command
                      adjust-command
                      rename-other-command

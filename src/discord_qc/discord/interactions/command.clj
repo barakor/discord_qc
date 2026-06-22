@@ -57,7 +57,7 @@
       (do
         (let [new-elo (assoc elo :quake-name quake-name)]
           (elo/save-discord-id->Elo discord-id new-elo)
-          (srsp/update-message {:content "" :embeds (elo-map->embed new-elo)})))
+          (srsp/update-message {:content (str "Updated Quaker name: `" quake-name "`")})))
       (srsp/update-message {:content (str "couldn't find user")}))))
 
 (defmethod handle-command-interaction "balance" [interaction]
