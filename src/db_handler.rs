@@ -155,13 +155,11 @@ mod tests {
 
         let mut db = Db::default();
         db.elos.insert(42, PlayerElo::new("rapha".to_string()));
-        db.admins.insert(7);
         save(&db, path).await.unwrap();
 
         let loaded = boot(path, None).await;
         assert_eq!(loaded.elos.get(&42).unwrap().quake_name, "rapha");
         assert_eq!(loaded.elos.get(&42).unwrap().duel, DEFAULT_SCORE);
-        assert!(loaded.admins.contains(&7));
 
         tokio::fs::remove_file(path).await.unwrap();
     }
@@ -171,14 +169,12 @@ mod tests {
         assert!(Path::new("db.json").exists());
         let db = boot("db.json", None).await;
         assert!(!db.elos.is_empty());
-        assert!(!db.admins.is_empty());
     }
 
     #[tokio::test]
     async fn missing_db_file_loads_empty() {
         let db = boot("/nonexistent/discord_qc_db.json", None).await;
         assert!(db.elos.is_empty());
-        assert!(db.admins.is_empty());
     }
 
     #[tokio::test]
@@ -188,17 +184,17 @@ mod tests {
         let tmp = format!("{path}.tmp");
 
         let mut first = Db::default();
-        first.admins.insert(1);
+        first.elos.insert(1, PlayerElo::new("one".to_string()));
         save(&first, path).await.unwrap();
 
         // Overwrite with different content; the read-back must be the new state.
         let mut second = Db::default();
-        second.admins.insert(2);
+        second.elos.insert(2, PlayerElo::new("two".to_string()));
         save(&second, path).await.unwrap();
 
         let loaded = boot(path, None).await;
-        assert!(loaded.admins.contains(&2));
-        assert!(!loaded.admins.contains(&1));
+        assert!(loaded.elos.contains_key(&2));
+        assert!(!loaded.elos.contains_key(&1));
         assert!(!Path::new(&tmp).exists(), "temp file must be renamed away");
 
         tokio::fs::remove_file(path).await.unwrap();

@@ -13,7 +13,6 @@ use crate::{
 use anyhow::{Context, Result, anyhow};
 use std::{collections::BTreeSet, sync::Arc};
 use tokio::sync::RwLock;
-use twilight_http::Client;
 use twilight_interactions::command::{CommandModel, CommandOption, CreateCommand, CreateOption};
 use twilight_model::{
     application::interaction::{
@@ -22,7 +21,6 @@ use twilight_model::{
     },
     channel::message::component::ButtonStyle,
     http::interaction::InteractionResponseData,
-    id::Id,
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
 
@@ -31,7 +29,7 @@ use twilight_util::builder::InteractionResponseDataBuilder;
 pub enum Permission {
     /// Anyone may use it.
     App,
-    /// Bot admins (and the owner).
+    /// Holders of the admin role in the home server (and the owner).
     Admin,
     /// Bot owner only.
     Owner,
@@ -132,8 +130,6 @@ commands! {
     Register        => RegisterCommand,        "register",          Admin, ephemeral: true,  mutating: true;
     Adjust          => AdjustCommand,          "adjust",            Admin, ephemeral: true,  mutating: true;
     DbStats         => DBStatsCommand,         "db-stats",          Admin, ephemeral: true,  mutating: false;
-    ListAdmins      => ListAdminsCommand,      "list-admins",       Admin, ephemeral: true,  mutating: false;
-    MakeAdmin       => MakeAdminCommand,       "make-admin",        Owner, ephemeral: true,  mutating: true;
     BackupDb        => BackupDbCommand,        "backup-db",         Owner, ephemeral: true,  mutating: true;
     RestoreDbBackup => RestoreDBBackupCommand, "restore-db-backup", Owner, ephemeral: true,  mutating: true;
 }
@@ -367,49 +363,6 @@ impl DBStatsCommand {
             "# Of players registered in db: {}",
             players_registered
         ))))
-    }
-}
-
-#[derive(CommandModel, CreateCommand, Debug)]
-#[command(name = "make-admin", desc = "Make User an Admin")]
-pub struct MakeAdminCommand {
-    #[command(desc = "Tag a discord user")]
-    pub discord_id: String,
-}
-
-impl MakeAdminCommand {
-    pub async fn handle(
-        data: CommandData,
-        db: &Arc<RwLock<Db>>,
-    ) -> Result<Option<InteractionResponseData>> {
-        let command = MakeAdminCommand::from_interaction(data.into())
-            .context("failed to parse command data")?;
-
-        let discord_id = str_to_id(&command.discord_id)?;
-        db.write().await.admins.insert(discord_id);
-        Ok(Some(text_response(format!(
-            "User <@{}> is now an admin",
-            discord_id
-        ))))
-    }
-}
-
-#[derive(CommandModel, CreateCommand, Debug)]
-#[command(name = "list-admins", desc = "List all Admins")]
-pub struct ListAdminsCommand {}
-
-impl ListAdminsCommand {
-    pub async fn handle(
-        db: &Arc<RwLock<Db>>,
-        http_client: &Client,
-    ) -> Result<Option<InteractionResponseData>> {
-        let admin_ids: Vec<u64> = db.read().await.admins.iter().copied().collect();
-        let mut admin_names = Vec::with_capacity(admin_ids.len());
-        for admin_id in admin_ids {
-            let user = http_client.user(Id::new(admin_id)).await?.model().await?;
-            admin_names.push(user.global_name.unwrap_or(user.name));
-        }
-        Ok(Some(text_response(admin_names.join(", "))))
     }
 }
 

@@ -3,7 +3,7 @@
 //! WASM frontend.
 
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 pub const DEFAULT_SCORE: f64 = 5.0;
 
@@ -171,14 +171,12 @@ impl PlayerElo {
 
 pub type EloMap = BTreeMap<u64, PlayerElo>;
 
-/// Whole bot database: player elos plus admin ids. Persisted as one JSON file,
-/// backed up to GitHub. Serialization lives here; the bot owns the file/GitHub
-/// I/O so this stays WASM-safe.
+/// Whole bot database: player elos. Persisted as one JSON file, backed up to
+/// GitHub. Serialization lives here; the bot owns the file/GitHub I/O so this
+/// stays WASM-safe.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Db {
     pub elos: EloMap,
-    #[serde(default)]
-    pub admins: BTreeSet<u64>,
 }
 
 impl Db {

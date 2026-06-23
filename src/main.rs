@@ -12,7 +12,7 @@ use crate::{
     event_handler::{Bot, SHUTDOWN},
     interactions::command::{
         AdjustCommand, BackupDbCommand, BalanceCommand, DBStatsCommand, DivideCommand,
-        ListAdminsCommand, MakeAdminCommand, QueryCommand, RegisterCommand, RenameCommand,
+        QueryCommand, RegisterCommand, RenameCommand,
         RenameOtherCommand, RestoreDBBackupCommand,
     },
 };
@@ -92,8 +92,8 @@ async fn main() -> Result<()> {
     tracing::info!("logged as {} with ID {}", application.name, application.id);
     let interaction_client = client.interaction(application.id);
 
-    // App + admin commands everywhere; owner commands (make-admin, and later
-    // backup/restore) only in the home guild — mirrors the Clojure registration.
+    // App + admin commands everywhere; owner commands (backup/restore) only in
+    // the home guild — mirrors the Clojure registration.
     let app_and_admin_commands = [
         QueryCommand::create_command().into(),
         RenameCommand::create_command().into(),
@@ -103,10 +103,8 @@ async fn main() -> Result<()> {
         RenameOtherCommand::create_command().into(),
         AdjustCommand::create_command().into(),
         DBStatsCommand::create_command().into(),
-        ListAdminsCommand::create_command().into(),
     ];
     let owner_commands = [
-        MakeAdminCommand::create_command().into(),
         BackupDbCommand::create_command().into(),
         RestoreDBBackupCommand::create_command().into(),
     ];

@@ -9,7 +9,7 @@ use crate::{
     interactions::{
         command::{
             AdjustCommand, BackupDbCommand, BalanceCommand, Command, DBStatsCommand, DivideCommand,
-            ListAdminsCommand, MakeAdminCommand, Permission, QueryCommand, RegisterCommand,
+            Permission, QueryCommand, RegisterCommand,
             RenameCommand, RenameOtherCommand, RestoreDBBackupCommand, render_invocation,
         },
         component::handle_component,
@@ -70,12 +70,7 @@ impl Bot {
                 .build(),
         );
         let db = crate::db_handler::boot(&db_path, github_config.as_ref()).await;
-        tracing::info!(
-            players = db.elos.len(),
-            admins = db.admins.len(),
-            db_path,
-            "loaded db"
-        );
+        tracing::info!(players = db.elos.len(), db_path, "loaded db");
 
         Self {
             http_client,
@@ -272,8 +267,6 @@ impl Bot {
             Command::Register => RegisterCommand::handle(data, &self.db).await,
             Command::Adjust => AdjustCommand::handle(data, &self.db).await,
             Command::DbStats => DBStatsCommand::handle(&self.db).await,
-            Command::MakeAdmin => MakeAdminCommand::handle(data, &self.db).await,
-            Command::ListAdmins => ListAdminsCommand::handle(&self.db, &self.http_client).await,
             Command::BackupDb => match &self.github_config {
                 Some(config) => BackupDbCommand::handle(&self.db, config).await,
                 None => Err(anyhow::anyhow!("no github config")),
