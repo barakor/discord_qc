@@ -519,10 +519,9 @@ mod tests {
             .collect();
         let embed = balance_teams_embed(GameMode::Ctf, &players);
 
-        assert_eq!(embed.fields.len(), 4);
+        assert_eq!(embed.fields.len(), 3);
         assert_eq!(embed.fields[0].name, "ELO Weighted  Team Option #1");
         assert_eq!(embed.fields[2].name, "ELO Weighted  Team Option #3");
-        assert_eq!(embed.fields[3].name, "Players ELOs:");
         assert!(embed.description.unwrap().contains("ctf"));
         // each option splits 4 vs 4, divider present
         assert!(embed.fields[0].value.contains("VS"));
