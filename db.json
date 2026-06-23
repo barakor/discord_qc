@@ -1,20 +1,5 @@
 {
   "elos" : {
-    "00000000000" : {
-      "duel" : 9999999.0,
-      "slipgate" : 9999999.0,
-      "ranked_duel" : 5.0,
-      "tdm" : 9999999.0,
-      "objective" : 9999999.0,
-      "killing" : 9999999.0,
-      "quake_name" : "JohnElo",
-      "sacrifice_tournament" : 9999999.0,
-      "instagib" : 9999999.0,
-      "tdm_2v2" : 9999999.0,
-      "sacrifice" : 9999999.0,
-      "ffa" : 9999999.0,
-      "ctf" : 9999999.0
-    },
     "1007400834138636442" : {
       "duel" : 5.0,
       "slipgate" : 5.0,
