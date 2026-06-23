@@ -35,3 +35,5 @@ event.json
 # Rust / Trunk
 /target
 crates/web/dist/
+db.json
+src/db-data.edn
