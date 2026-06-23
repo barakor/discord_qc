@@ -55,7 +55,8 @@ pub enum Command {
 
 impl Command {
     /// Discord wire name, matching each struct's `#[command(name = ...)]`.
-    pub fn name(self) -> &'static str {
+    /// `const` so the match against each struct's `NAME` runs at compile time.
+    pub const fn name(self) -> &'static str {
         match self {
             Command::Balance => "balance",
             Command::Divide => "divide",
@@ -616,3 +617,41 @@ impl RestoreDBBackupCommand {
         Ok(Some(text_response("DB restored from backup")))
     }
 }
+
+/// Compile-time equality of two `&str`. `==` isn't const for strings yet.
+const fn str_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < a.len() {
+        if a[i] != b[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+/// The `#[command(name = ...)]` attribute needs a string literal, so it can't
+/// reference `Command`. These assertions fail the BUILD if any struct's macro
+/// name drifts from the enum's `name()`, keeping the two in lockstep.
+/// `CreateCommand::NAME` is the literal the derive macro saw.
+const _: () = {
+    assert!(str_eq(BalanceCommand::NAME, Command::Balance.name()));
+    assert!(str_eq(DivideCommand::NAME, Command::Divide.name()));
+    assert!(str_eq(QueryCommand::NAME, Command::Query.name()));
+    assert!(str_eq(RenameCommand::NAME, Command::Rename.name()));
+    assert!(str_eq(RenameOtherCommand::NAME, Command::RenameOther.name()));
+    assert!(str_eq(RegisterCommand::NAME, Command::Register.name()));
+    assert!(str_eq(AdjustCommand::NAME, Command::Adjust.name()));
+    assert!(str_eq(DBStatsCommand::NAME, Command::DbStats.name()));
+    assert!(str_eq(MakeAdminCommand::NAME, Command::MakeAdmin.name()));
+    assert!(str_eq(ListAdminsCommand::NAME, Command::ListAdmins.name()));
+    assert!(str_eq(BackupDbCommand::NAME, Command::BackupDb.name()));
+    assert!(str_eq(
+        RestoreDBBackupCommand::NAME,
+        Command::RestoreDbBackup.name()
+    ));
+};
