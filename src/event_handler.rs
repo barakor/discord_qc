@@ -10,7 +10,7 @@ use crate::{
         command::{
             AdjustCommand, BackupDbCommand, BalanceCommand, Command, DBStatsCommand, DivideCommand,
             ListAdminsCommand, MakeAdminCommand, Permission, QueryCommand, RegisterCommand,
-            RenameCommand, RenameOtherCommand, RestoreDBBackupCommand,
+            RenameCommand, RenameOtherCommand, RestoreDBBackupCommand, render_invocation,
         },
         component::handle_component,
     },
@@ -87,9 +87,9 @@ impl Bot {
     /// Post a best-effort log line to the bot-logs channel after a mutating
     /// command succeeds. Off the response path: failures are logged, never
     /// surfaced to the user.
-    fn log_mutation(&self, command: Command, user_id: u64) {
+    fn log_mutation(&self, invocation: &str, user_id: u64) {
         let http_client = self.http_client.clone();
-        let content = format!("`/{}` run by <@{}>", command.name(), user_id);
+        let content = format!("`{}` run by <@{}>", invocation, user_id);
         tokio::spawn(async move {
             let result = async {
                 http_client
@@ -230,6 +230,7 @@ impl Bot {
             return interaction_response(&self.http_client, &interaction, response).await;
         }
 
+        let invocation = render_invocation(&data);
         let response = match command {
             Command::Balance => BalanceCommand::handle(data, self, &interaction).await,
             Command::Divide => DivideCommand::handle(data, self, &interaction).await,
@@ -256,7 +257,7 @@ impl Bot {
                 tracing::error!(?e, "failed to persist db after {}", command.name());
             }
             self.spawn_github_backup();
-            self.log_mutation(command, user_id);
+            self.log_mutation(&invocation, user_id);
         }
 
         match response {

@@ -16,7 +16,10 @@ use tokio::sync::RwLock;
 use twilight_http::Client;
 use twilight_interactions::command::{CommandModel, CommandOption, CreateCommand, CreateOption};
 use twilight_model::{
-    application::interaction::{Interaction, application_command::CommandData},
+    application::interaction::{
+        Interaction,
+        application_command::{CommandData, CommandDataOption, CommandOptionValue},
+    },
     channel::message::component::ButtonStyle,
     http::interaction::InteractionResponseData,
     id::Id,
@@ -135,6 +138,46 @@ commands! {
     RestoreDbBackup => RestoreDBBackupCommand, "restore-db-backup", Owner, ephemeral: true,  mutating: true;
 }
 
+/// Render a slash command invocation back to its textual form, e.g.
+/// `/register discord_id:<@123> quake_name:foo score:5`. Used for the bot-logs
+/// audit line so the full command (name + every supplied option) is captured.
+pub fn render_invocation(data: &CommandData) -> String {
+    let mut out = format!("/{}", data.name);
+    render_options(&data.options, &mut out);
+    out
+}
+
+fn render_options(options: &[CommandDataOption], out: &mut String) {
+    for option in options {
+        match &option.value {
+            CommandOptionValue::SubCommand(sub) | CommandOptionValue::SubCommandGroup(sub) => {
+                out.push(' ');
+                out.push_str(&option.name);
+                render_options(sub, out);
+            }
+            value => {
+                out.push_str(&format!(" {}:{}", option.name, render_value(value)));
+            }
+        }
+    }
+}
+
+fn render_value(value: &CommandOptionValue) -> String {
+    match value {
+        CommandOptionValue::String(s) => s.clone(),
+        CommandOptionValue::Integer(i) => i.to_string(),
+        CommandOptionValue::Number(n) => n.to_string(),
+        CommandOptionValue::Boolean(b) => b.to_string(),
+        CommandOptionValue::User(id) => format!("<@{}>", id),
+        CommandOptionValue::Mentionable(id) => format!("<@{}>", id),
+        CommandOptionValue::Channel(id) => format!("<#{}>", id),
+        CommandOptionValue::Role(id) => format!("<@&{}>", id),
+        CommandOptionValue::Attachment(id) => id.to_string(),
+        CommandOptionValue::Focused(s, _) => s.clone(),
+        CommandOptionValue::SubCommand(_) | CommandOptionValue::SubCommandGroup(_) => String::new(),
+    }
+}
+
 /// Game modes exposed as slash command choices (mirrors the Clojure choice list).
 #[derive(CommandOption, CreateOption, Debug, Clone, Copy)]
 pub enum GameModeOption {
@@ -215,7 +258,12 @@ impl RenameCommand {
         match db.elos.get_mut(&user_id) {
             Some(elo) => {
                 elo.quake_name = command.quake_name;
-                Ok(Some(player_elo_embed(elo)))
+                // Ok(Some(player_elo_embed(elo)))
+                Ok(Some(
+                    InteractionResponseDataBuilder::new()
+                        .content(format!("Renamed to `{}`", &elo.quake_name))
+                        .build(),
+                ))
             }
             None => Ok(Some(text_response("couldn't find user"))),
         }
