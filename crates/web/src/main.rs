@@ -26,7 +26,13 @@ fn main() {
 async fn fetch_db() -> Option<Db> {
     let resp = gloo_net::http::Request::get(DB_URL).send().await.ok()?;
     let bytes = resp.binary().await.ok()?;
-    Db::from_json(&bytes).ok()
+    match Db::from_json(&bytes) {
+        Ok(db) => Some(db),
+        Err(e) => {
+            leptos::logging::error!("db parse failed: {e}");
+            None
+        }
+    }
 }
 
 #[component]
