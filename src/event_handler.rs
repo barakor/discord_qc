@@ -37,14 +37,17 @@ pub static SHUTDOWN: AtomicBool = AtomicBool::new(false);
 /// Same hardcoded bot owner as the Clojure version.
 pub const OWNER_ID: u64 = 88533822521507840;
 
-const ADMIN_COMMANDS: [&str; 5] = [
+const ADMIN_COMMANDS: [&str; 6] = [
     "db-stats",
     "register",
     "adjust",
     "rename-other",
     "list-admins",
+    "query",
 ];
 const OWNER_COMMANDS: [&str; 3] = ["backup-db", "restore-db-backup", "make-admin"];
+/// Commands whose response is only shown to the invoking user.
+const EPHEMERAL_COMMANDS: [&str; 1] = ["query"];
 const MUTATING_COMMANDS: [&str; 6] = [
     "rename",
     "rename-other",
@@ -202,13 +205,14 @@ impl Bot {
         interaction: Interaction,
         data: CommandData,
     ) -> anyhow::Result<()> {
-        interaction_ack(&self.http_client, &interaction).await?;
+        let command_name = data.name.clone();
+        let ephemeral = EPHEMERAL_COMMANDS.contains(&&*command_name);
+        interaction_ack(&self.http_client, &interaction, ephemeral).await?;
 
         let user_id = interaction
             .author_id()
             .map(|id| id.get())
             .ok_or(anyhow::anyhow!("interaction without author"))?;
-        let command_name = data.name.clone();
 
         if !self.is_authorized(&command_name, user_id).await {
             let response = InteractionResponseDataBuilder::new()

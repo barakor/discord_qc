@@ -8,6 +8,7 @@ use twilight_cache_inmemory::InMemoryCache;
 use twilight_http::Client;
 use twilight_model::{
     application::interaction::Interaction,
+    channel::message::MessageFlags,
     channel::{
         ChannelType,
         message::{
@@ -22,7 +23,7 @@ use twilight_model::{
         marker::{ChannelMarker, GuildMarker, UserMarker},
     },
 };
-use twilight_util::builder::embed::EmbedBuilder;
+use twilight_util::builder::{InteractionResponseDataBuilder, embed::EmbedBuilder};
 
 pub const EMBED_COLOR: u32 = 9896156;
 const TEAMS_DIVIDER: &str = "\n------------------------------VS------------------------------\n";
@@ -36,7 +37,18 @@ pub struct NamedElo {
     pub score: f64,
 }
 
-pub async fn interaction_ack(client: &Client, interaction: &Interaction) -> Result<()> {
+pub async fn interaction_ack(
+    client: &Client,
+    interaction: &Interaction,
+    ephemeral: bool,
+) -> Result<()> {
+    // The ephemeral flag is locked in at defer time; the follow-up update
+    // cannot change it, so it must be set here on the deferred response.
+    let data = ephemeral.then(|| {
+        InteractionResponseDataBuilder::new()
+            .flags(MessageFlags::EPHEMERAL)
+            .build()
+    });
     client
         .interaction(interaction.application_id)
         .create_response(
@@ -44,7 +56,7 @@ pub async fn interaction_ack(client: &Client, interaction: &Interaction) -> Resu
             &interaction.token,
             &InteractionResponse {
                 kind: InteractionResponseType::DeferredChannelMessageWithSource,
-                data: None,
+                data,
             },
         )
         .await?;
@@ -241,7 +253,7 @@ pub fn balance_teams_embed(game_mode: GameMode, players: &[NamedElo]) -> Embed {
     let elos: PlayersElos = players.iter().map(|p| (p.id, p.score)).collect();
     let names: BTreeMap<u64, String> = players.iter().map(|p| (p.id, p.name.clone())).collect();
 
-    let mut fields: Vec<EmbedField> = crate::balancing::weighted_allocation(&elos)
+    let fields: Vec<EmbedField> = crate::balancing::weighted_allocation(&elos)
         .iter()
         .take(3)
         .enumerate()
