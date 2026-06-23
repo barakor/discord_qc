@@ -266,7 +266,6 @@
    "95671127803703296"
    "314077439481348096"
    "515309275325792277"
-   "00000000000"
    "446078369726201856"
    "826152999847723058"
    "531616751348350986"
@@ -315,19 +314,6 @@
   :sacrifice 3.0,
   :objective 3.0,
   :tdm-2v2 3.0},
- "discord-id->elo-map/00000000000"
- {:quake-name "JohnElo",
-  :killing 9999999.0,
-  :tdm 9999999.0,
-  :sacrifice-tournament 9999999.0,
-  :instagib 9999999.0,
-  :slipgate 9999999.0,
-  :duel 9999999.0,
-  :ctf 9999999.0,
-  :ffa 9999999.0,
-  :sacrifice 9999999.0,
-  :objective 9999999.0,
-  :tdm-2v2 9999999.0},
  "discord-id->elo-map/0Cool"
  {:quake-name "drjones",
   :killing 3.0,
