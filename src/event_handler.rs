@@ -37,6 +37,9 @@ pub static SHUTDOWN: AtomicBool = AtomicBool::new(false);
 /// Same hardcoded bot owner as the Clojure version.
 pub const OWNER_ID: u64 = 88533822521507840;
 
+/// Channel that mutating commands are logged to.
+pub const LOG_CHANNEL_ID: u64 = 1519062825446670406;
+
 
 #[derive(Clone)]
 pub struct Bot {
@@ -79,6 +82,26 @@ impl Bot {
     pub async fn persist_db(&self) -> Result<()> {
         let db = self.db.read().await;
         crate::db_handler::save(&db, &self.db_path).await
+    }
+
+    /// Post a best-effort log line to the bot-logs channel after a mutating
+    /// command succeeds. Off the response path: failures are logged, never
+    /// surfaced to the user.
+    fn log_mutation(&self, command: Command, user_id: u64) {
+        let http_client = self.http_client.clone();
+        let content = format!("`/{}` run by <@{}>", command.name(), user_id);
+        tokio::spawn(async move {
+            let result = async {
+                http_client
+                    .create_message(twilight_model::id::Id::new(LOG_CHANNEL_ID))
+                    .content(&content)
+                    .await
+            }
+            .await;
+            if let Err(e) = result {
+                tracing::error!(?e, "failed to post command log");
+            }
+        });
     }
 
     /// Fire a best-effort GitHub backup in the background. Off the command
@@ -233,6 +256,7 @@ impl Bot {
                 tracing::error!(?e, "failed to persist db after {}", command.name());
             }
             self.spawn_github_backup();
+            self.log_mutation(command, user_id);
         }
 
         match response {

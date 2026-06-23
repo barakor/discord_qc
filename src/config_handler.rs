@@ -5,6 +5,7 @@ use std::{
     env,
     sync::atomic::{AtomicBool, Ordering},
 };
+use twilight_model::id::{marker::GuildMarker, Id};
 
 static CONFIG_HANDLER_STARTED: AtomicBool = AtomicBool::new(false);
 
@@ -43,6 +44,12 @@ pub struct EnvConfig {
     pub discord_token: String,
     pub github_config: Option<GithubConfig>,
     pub db_path: String,
+    pub home_server: Id<GuildMarker>,
+}
+
+fn home_server() -> Result<Id<GuildMarker>, Error> {
+    let raw = env::var("HOME_SERVER")?;
+    Ok(Id::new(raw.parse()?))
 }
 
 const DEFAULT_DB_PATH: &str = "db.json";
@@ -54,6 +61,7 @@ impl EnvConfig {
             discord_token: env::var("DISCORD_TOKEN")?,
             github_config: GithubConfig::new().ok(),
             db_path: env::var("DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string()),
+            home_server: home_server()?,
         })
     }
 }
@@ -66,6 +74,7 @@ pub fn get_testing_config() -> Result<EnvConfig, Error> {
         discord_token: env::var("DISCORD_TESTING_TOKEN")?,
         github_config: GithubConfig::new().ok(),
         db_path: env::var("DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string()),
+        home_server: home_server()?,
     })
 }
 
