@@ -124,15 +124,15 @@ commands! {
     Balance         => BalanceCommand,         "balance",           App,   ephemeral: false, mutating: false;
     Divide          => DivideCommand,          "divide",            App,   ephemeral: false, mutating: false;
     Query           => QueryCommand,           "query",             Admin, ephemeral: true,  mutating: false;
-    Rename          => RenameCommand,          "rename",            App,   ephemeral: false, mutating: true;
-    RenameOther     => RenameOtherCommand,     "rename-other",      Admin, ephemeral: false, mutating: true;
-    Register        => RegisterCommand,        "register",          Admin, ephemeral: false, mutating: true;
-    Adjust          => AdjustCommand,          "adjust",            Admin, ephemeral: false, mutating: true;
-    DbStats         => DBStatsCommand,         "db-stats",          Admin, ephemeral: false, mutating: false;
-    MakeAdmin       => MakeAdminCommand,       "make-admin",        Owner, ephemeral: false, mutating: true;
-    ListAdmins      => ListAdminsCommand,      "list-admins",       Admin, ephemeral: false, mutating: false;
-    BackupDb        => BackupDbCommand,        "backup-db",         Owner, ephemeral: false, mutating: false;
-    RestoreDbBackup => RestoreDBBackupCommand, "restore-db-backup", Owner, ephemeral: false, mutating: true;
+    Rename          => RenameCommand,          "rename",            App,   ephemeral: true,  mutating: true;
+    RenameOther     => RenameOtherCommand,     "rename-other",      Admin, ephemeral: true,  mutating: true;
+    Register        => RegisterCommand,        "register",          Admin, ephemeral: true,  mutating: true;
+    Adjust          => AdjustCommand,          "adjust",            Admin, ephemeral: true,  mutating: true;
+    DbStats         => DBStatsCommand,         "db-stats",          Admin, ephemeral: true,  mutating: false;
+    ListAdmins      => ListAdminsCommand,      "list-admins",       Admin, ephemeral: true,  mutating: false;
+    MakeAdmin       => MakeAdminCommand,       "make-admin",        Owner, ephemeral: true,  mutating: true;
+    BackupDb        => BackupDbCommand,        "backup-db",         Owner, ephemeral: true,  mutating: true;
+    RestoreDbBackup => RestoreDBBackupCommand, "restore-db-backup", Owner, ephemeral: true,  mutating: true;
 }
 
 /// Game modes exposed as slash command choices (mirrors the Clojure choice list).
