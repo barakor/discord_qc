@@ -6,8 +6,8 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 use twilight_model::id::{
-    marker::{GuildMarker, RoleMarker},
     Id,
+    marker::{GuildMarker, RoleMarker},
 };
 
 static CONFIG_HANDLER_STARTED: AtomicBool = AtomicBool::new(false);
@@ -52,7 +52,7 @@ pub struct EnvConfig {
 }
 
 fn home_server() -> Result<Id<GuildMarker>, Error> {
-    let raw = env::var("HOME_SERVER")?;
+    let raw = env::var("HOME_SERVER").unwrap_or("1104894380080365710".to_string());
     Ok(Id::new(raw.parse()?))
 }
 

@@ -12,8 +12,7 @@ use crate::{
     event_handler::{Bot, SHUTDOWN},
     interactions::command::{
         AdjustCommand, BackupDbCommand, BalanceCommand, DBStatsCommand, DivideCommand,
-        QueryCommand, RegisterCommand, RenameCommand,
-        RenameOtherCommand, RestoreDBBackupCommand,
+        QueryCommand, RegisterCommand, RenameCommand, RenameOtherCommand, RestoreDBBackupCommand,
     },
 };
 use anyhow::Result;
@@ -23,12 +22,9 @@ use tokio::signal;
 use twilight_gateway::{CloseFrame, ConfigBuilder, Intents, Shard};
 use twilight_http::Client;
 use twilight_interactions::command::CreateCommand;
-use twilight_model::{
-    gateway::{
-        payload::outgoing::update_presence::UpdatePresencePayload,
-        presence::{ActivityType, MinimalActivity, Status},
-    },
-    id::Id,
+use twilight_model::gateway::{
+    payload::outgoing::update_presence::UpdatePresencePayload,
+    presence::{ActivityType, MinimalActivity, Status},
 };
 
 pub async fn start() -> Result<EnvConfig> {
@@ -116,7 +112,7 @@ async fn main() -> Result<()> {
         .collect();
 
     interaction_client
-        .set_guild_commands(Id::new(1104894380080365710), &guild_commands)
+        .set_guild_commands(config.home_server, &guild_commands)
         .await?;
 
     interaction_client
