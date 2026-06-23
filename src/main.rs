@@ -172,6 +172,21 @@ mod tests {
     use crate::config_handler::get_testing_config;
     use twilight_gateway::{Event, EventTypeFlags, StreamExt as _};
 
+    /// Auto-init tracing once per test binary (before any test runs).
+    /// `with_test_writer` routes spans to libtest's per-test capture buffer,
+    /// so output shows on failure or with `cargo test -- --nocapture`.
+    /// Set verbosity via `RUST_LOG` (e.g. `RUST_LOG=debug`).
+    #[ctor::ctor(unsafe)]
+    fn init_test_tracing() {
+        use tracing_subscriber::EnvFilter;
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(
+                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug")),
+            )
+            .with_test_writer()
+            .try_init();
+    }
+
     // Manual smoke test: needs DISCORD_TESTING_TOKEN and blocks until ctrl-c.
     #[ignore]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
