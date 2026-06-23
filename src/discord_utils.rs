@@ -220,14 +220,14 @@ fn format_team_option(
     title: String,
 ) -> EmbedField {
     let team1 = format!(
-        "{} |  Team ELO: {:.3}",
+        "{}", // |  Team ELO: {:.3}",
         team_names_by_elo(&split.team1, names),
-        split.team1_elo_sum
+        // split.team1_elo_sum
     );
     let team2 = format!(
-        "{} |  Team ELO: {:.3}",
+        "{}", // |  Team ELO: {:.3}",
         team_names_by_elo(&split.team2, names),
-        split.team2_elo_sum
+        // split.team2_elo_sum
     );
     EmbedField {
         inline: false,
@@ -254,15 +254,15 @@ pub fn balance_teams_embed(game_mode: GameMode, players: &[NamedElo]) -> Embed {
         })
         .collect();
 
-    fields.push(EmbedField {
-        inline: false,
-        name: "Players ELOs:".to_string(),
-        value: players
-            .iter()
-            .map(|p| format!("{}: {:.3}", p.name, p.score))
-            .collect::<Vec<_>>()
-            .join(", "),
-    });
+    // fields.push(EmbedField {
+    //     inline: false,
+    //     name: "Players ELOs:".to_string(),
+    //     value: players
+    //         .iter()
+    //         .map(|p| format!("{}: {:.3}", p.name, p.score))
+    //         .collect::<Vec<_>>()
+    //         .join(", "),
+    // });
 
     let mut embed = EmbedBuilder::new()
         .color(EMBED_COLOR)
