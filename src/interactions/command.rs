@@ -34,95 +34,105 @@ pub enum Permission {
     Owner,
 }
 
-/// Every slash command the bot handles. Single source of truth for the wire
-/// name, authorization tier, and response behavior — replaces the scattered
-/// raw-string arrays and match arms.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Command {
-    Balance,
-    Divide,
-    Query,
-    Rename,
-    RenameOther,
-    Register,
-    Adjust,
-    DbStats,
-    MakeAdmin,
-    ListAdmins,
-    BackupDb,
-    RestoreDbBackup,
+/// Compile-time equality of two `&str` (`==` isn't const for strings yet).
+const fn str_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < a.len() {
+        if a[i] != b[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
 }
 
-impl Command {
-    /// Discord wire name, matching each struct's `#[command(name = ...)]`.
-    /// `const` so the match against each struct's `NAME` runs at compile time.
-    pub const fn name(self) -> &'static str {
-        match self {
-            Command::Balance => "balance",
-            Command::Divide => "divide",
-            Command::Query => "query",
-            Command::Rename => "rename",
-            Command::RenameOther => "rename-other",
-            Command::Register => "register",
-            Command::Adjust => "adjust",
-            Command::DbStats => "db-stats",
-            Command::MakeAdmin => "make-admin",
-            Command::ListAdmins => "list-admins",
-            Command::BackupDb => "backup-db",
-            Command::RestoreDbBackup => "restore-db-backup",
+/// The single source of truth for every slash command. Each row is:
+///
+/// ```text
+/// Variant => StructType, "wire-name", Permission, ephemeral: bool, mutating: bool;
+/// ```
+///
+/// From this one table the macro generates the `Command` enum and all of its
+/// metadata accessors (`name`, `from_name`, `permission`, `is_ephemeral`,
+/// `is_mutating`), plus a per-row compile-time assertion that the wire name
+/// matches the struct's `#[command(name = ...)]` (via `CreateCommand::NAME`).
+///
+/// Adding a command means adding ONE row here. Its name check is generated
+/// automatically, and the exhaustive `match` in `handle_command` then fails to
+/// compile until you wire the handler — so a new command can't be half-added.
+macro_rules! commands {
+    ($(
+        $variant:ident => $struct:ty, $name:literal, $perm:ident,
+        ephemeral: $eph:literal, mutating: $mutating:literal
+    );* $(;)?) => {
+        /// Every slash command the bot handles.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum Command {
+            $($variant),*
         }
-    }
 
-    /// Parse an incoming interaction's command name.
-    pub fn from_name(name: &str) -> Option<Self> {
-        Some(match name {
-            "balance" => Command::Balance,
-            "divide" => Command::Divide,
-            "query" => Command::Query,
-            "rename" => Command::Rename,
-            "rename-other" => Command::RenameOther,
-            "register" => Command::Register,
-            "adjust" => Command::Adjust,
-            "db-stats" => Command::DbStats,
-            "make-admin" => Command::MakeAdmin,
-            "list-admins" => Command::ListAdmins,
-            "backup-db" => Command::BackupDb,
-            "restore-db-backup" => Command::RestoreDbBackup,
-            _ => return None,
-        })
-    }
+        impl Command {
+            /// Discord wire name, matching each struct's `#[command(name = ...)]`.
+            pub const fn name(self) -> &'static str {
+                match self {
+                    $(Command::$variant => $name),*
+                }
+            }
 
-    /// Authorization tier required to run this command.
-    pub fn permission(self) -> Permission {
-        match self {
-            Command::BackupDb | Command::RestoreDbBackup | Command::MakeAdmin => Permission::Owner,
-            Command::DbStats
-            | Command::Register
-            | Command::Adjust
-            | Command::RenameOther
-            | Command::ListAdmins
-            | Command::Query => Permission::Admin,
-            Command::Balance | Command::Divide | Command::Rename => Permission::App,
+            /// Parse an incoming interaction's command name.
+            pub fn from_name(name: &str) -> Option<Self> {
+                Some(match name {
+                    $($name => Command::$variant,)*
+                    _ => return None,
+                })
+            }
+
+            /// Authorization tier required to run this command.
+            pub fn permission(self) -> Permission {
+                match self {
+                    $(Command::$variant => Permission::$perm),*
+                }
+            }
+
+            /// Response is only shown to the invoking user.
+            pub fn is_ephemeral(self) -> bool {
+                match self {
+                    $(Command::$variant => $eph),*
+                }
+            }
+
+            /// Mutates the db; success triggers a persist + github backup.
+            pub fn is_mutating(self) -> bool {
+                match self {
+                    $(Command::$variant => $mutating),*
+                }
+            }
         }
-    }
 
-    /// Response is only shown to the invoking user.
-    pub fn is_ephemeral(self) -> bool {
-        matches!(self, Command::Query)
-    }
+        // Build fails if any row's wire name drifts from the struct's macro name.
+        const _: () = {
+            $(assert!(str_eq(<$struct>::NAME, Command::$variant.name()));)*
+        };
+    };
+}
 
-    /// Mutates the db; success triggers a persist + github backup.
-    pub fn is_mutating(self) -> bool {
-        matches!(
-            self,
-            Command::Rename
-                | Command::RenameOther
-                | Command::Register
-                | Command::Adjust
-                | Command::MakeAdmin
-                | Command::RestoreDbBackup
-        )
-    }
+commands! {
+    Balance         => BalanceCommand,         "balance",           App,   ephemeral: false, mutating: false;
+    Divide          => DivideCommand,          "divide",            App,   ephemeral: false, mutating: false;
+    Query           => QueryCommand,           "query",             Admin, ephemeral: true,  mutating: false;
+    Rename          => RenameCommand,          "rename",            App,   ephemeral: false, mutating: true;
+    RenameOther     => RenameOtherCommand,     "rename-other",      Admin, ephemeral: false, mutating: true;
+    Register        => RegisterCommand,        "register",          Admin, ephemeral: false, mutating: true;
+    Adjust          => AdjustCommand,          "adjust",            Admin, ephemeral: false, mutating: true;
+    DbStats         => DBStatsCommand,         "db-stats",          Admin, ephemeral: false, mutating: false;
+    MakeAdmin       => MakeAdminCommand,       "make-admin",        Owner, ephemeral: false, mutating: true;
+    ListAdmins      => ListAdminsCommand,      "list-admins",       Admin, ephemeral: false, mutating: false;
+    BackupDb        => BackupDbCommand,        "backup-db",         Owner, ephemeral: false, mutating: false;
+    RestoreDbBackup => RestoreDBBackupCommand, "restore-db-backup", Owner, ephemeral: false, mutating: true;
 }
 
 /// Game modes exposed as slash command choices (mirrors the Clojure choice list).
@@ -617,41 +627,3 @@ impl RestoreDBBackupCommand {
         Ok(Some(text_response("DB restored from backup")))
     }
 }
-
-/// Compile-time equality of two `&str`. `==` isn't const for strings yet.
-const fn str_eq(a: &str, b: &str) -> bool {
-    let (a, b) = (a.as_bytes(), b.as_bytes());
-    if a.len() != b.len() {
-        return false;
-    }
-    let mut i = 0;
-    while i < a.len() {
-        if a[i] != b[i] {
-            return false;
-        }
-        i += 1;
-    }
-    true
-}
-
-/// The `#[command(name = ...)]` attribute needs a string literal, so it can't
-/// reference `Command`. These assertions fail the BUILD if any struct's macro
-/// name drifts from the enum's `name()`, keeping the two in lockstep.
-/// `CreateCommand::NAME` is the literal the derive macro saw.
-const _: () = {
-    assert!(str_eq(BalanceCommand::NAME, Command::Balance.name()));
-    assert!(str_eq(DivideCommand::NAME, Command::Divide.name()));
-    assert!(str_eq(QueryCommand::NAME, Command::Query.name()));
-    assert!(str_eq(RenameCommand::NAME, Command::Rename.name()));
-    assert!(str_eq(RenameOtherCommand::NAME, Command::RenameOther.name()));
-    assert!(str_eq(RegisterCommand::NAME, Command::Register.name()));
-    assert!(str_eq(AdjustCommand::NAME, Command::Adjust.name()));
-    assert!(str_eq(DBStatsCommand::NAME, Command::DbStats.name()));
-    assert!(str_eq(MakeAdminCommand::NAME, Command::MakeAdmin.name()));
-    assert!(str_eq(ListAdminsCommand::NAME, Command::ListAdmins.name()));
-    assert!(str_eq(BackupDbCommand::NAME, Command::BackupDb.name()));
-    assert!(str_eq(
-        RestoreDBBackupCommand::NAME,
-        Command::RestoreDbBackup.name()
-    ));
-};
