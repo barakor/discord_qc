@@ -167,6 +167,14 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn db_load_full_db_from_local_file() {
+        assert!(Path::new("db.json").exists());
+        let db = boot("db.json", None).await;
+        assert!(!db.elos.is_empty());
+        assert!(!db.admins.is_empty());
+    }
+
+    #[tokio::test]
     async fn missing_db_file_loads_empty() {
         let db = boot("/nonexistent/discord_qc_db.json", None).await;
         assert!(db.elos.is_empty());
