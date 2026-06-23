@@ -23,6 +23,107 @@ use twilight_model::{
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
 
+/// Authorization tier required to invoke a command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Permission {
+    /// Anyone may use it.
+    App,
+    /// Bot admins (and the owner).
+    Admin,
+    /// Bot owner only.
+    Owner,
+}
+
+/// Every slash command the bot handles. Single source of truth for the wire
+/// name, authorization tier, and response behavior — replaces the scattered
+/// raw-string arrays and match arms.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Command {
+    Balance,
+    Divide,
+    Query,
+    Rename,
+    RenameOther,
+    Register,
+    Adjust,
+    DbStats,
+    MakeAdmin,
+    ListAdmins,
+    BackupDb,
+    RestoreDbBackup,
+}
+
+impl Command {
+    /// Discord wire name, matching each struct's `#[command(name = ...)]`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Command::Balance => "balance",
+            Command::Divide => "divide",
+            Command::Query => "query",
+            Command::Rename => "rename",
+            Command::RenameOther => "rename-other",
+            Command::Register => "register",
+            Command::Adjust => "adjust",
+            Command::DbStats => "db-stats",
+            Command::MakeAdmin => "make-admin",
+            Command::ListAdmins => "list-admins",
+            Command::BackupDb => "backup-db",
+            Command::RestoreDbBackup => "restore-db-backup",
+        }
+    }
+
+    /// Parse an incoming interaction's command name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "balance" => Command::Balance,
+            "divide" => Command::Divide,
+            "query" => Command::Query,
+            "rename" => Command::Rename,
+            "rename-other" => Command::RenameOther,
+            "register" => Command::Register,
+            "adjust" => Command::Adjust,
+            "db-stats" => Command::DbStats,
+            "make-admin" => Command::MakeAdmin,
+            "list-admins" => Command::ListAdmins,
+            "backup-db" => Command::BackupDb,
+            "restore-db-backup" => Command::RestoreDbBackup,
+            _ => return None,
+        })
+    }
+
+    /// Authorization tier required to run this command.
+    pub fn permission(self) -> Permission {
+        match self {
+            Command::BackupDb | Command::RestoreDbBackup | Command::MakeAdmin => Permission::Owner,
+            Command::DbStats
+            | Command::Register
+            | Command::Adjust
+            | Command::RenameOther
+            | Command::ListAdmins
+            | Command::Query => Permission::Admin,
+            Command::Balance | Command::Divide | Command::Rename => Permission::App,
+        }
+    }
+
+    /// Response is only shown to the invoking user.
+    pub fn is_ephemeral(self) -> bool {
+        matches!(self, Command::Query)
+    }
+
+    /// Mutates the db; success triggers a persist + github backup.
+    pub fn is_mutating(self) -> bool {
+        matches!(
+            self,
+            Command::Rename
+                | Command::RenameOther
+                | Command::Register
+                | Command::Adjust
+                | Command::MakeAdmin
+                | Command::RestoreDbBackup
+        )
+    }
+}
+
 /// Game modes exposed as slash command choices (mirrors the Clojure choice list).
 #[derive(CommandOption, CreateOption, Debug, Clone, Copy)]
 pub enum GameModeOption {

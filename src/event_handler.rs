@@ -8,14 +8,14 @@ use crate::{
     github_handler::upload_bytes_to_github,
     interactions::{
         command::{
-            AdjustCommand, BackupDbCommand, BalanceCommand, DBStatsCommand, DivideCommand,
-            ListAdminsCommand, MakeAdminCommand, QueryCommand, RegisterCommand, RenameCommand,
-            RenameOtherCommand, RestoreDBBackupCommand,
+            AdjustCommand, BackupDbCommand, BalanceCommand, Command, DBStatsCommand, DivideCommand,
+            ListAdminsCommand, MakeAdminCommand, Permission, QueryCommand, RegisterCommand,
+            RenameCommand, RenameOtherCommand, RestoreDBBackupCommand,
         },
         component::handle_component,
     },
 };
-use anyhow::{Result, bail};
+use anyhow::Result;
 use std::{
     mem,
     sync::{
@@ -37,25 +37,6 @@ pub static SHUTDOWN: AtomicBool = AtomicBool::new(false);
 /// Same hardcoded bot owner as the Clojure version.
 pub const OWNER_ID: u64 = 88533822521507840;
 
-const ADMIN_COMMANDS: [&str; 6] = [
-    "db-stats",
-    "register",
-    "adjust",
-    "rename-other",
-    "list-admins",
-    "query",
-];
-const OWNER_COMMANDS: [&str; 3] = ["backup-db", "restore-db-backup", "make-admin"];
-/// Commands whose response is only shown to the invoking user.
-const EPHEMERAL_COMMANDS: [&str; 1] = ["query"];
-const MUTATING_COMMANDS: [&str; 6] = [
-    "rename",
-    "rename-other",
-    "register",
-    "adjust",
-    "make-admin",
-    "restore-db-backup",
-];
 
 #[derive(Clone)]
 pub struct Bot {
@@ -189,13 +170,13 @@ impl Bot {
     }
 
     /// Owner passes every check; admins come from the db.
-    async fn is_authorized(&self, command_name: &str, user_id: u64) -> bool {
-        if OWNER_COMMANDS.contains(&command_name) {
-            user_id == OWNER_ID
-        } else if ADMIN_COMMANDS.contains(&command_name) {
-            user_id == OWNER_ID || self.db.read().await.admins.contains(&user_id)
-        } else {
-            true
+    async fn is_authorized(&self, command: Command, user_id: u64) -> bool {
+        match command.permission() {
+            Permission::App => true,
+            Permission::Admin => {
+                user_id == OWNER_ID || self.db.read().await.admins.contains(&user_id)
+            }
+            Permission::Owner => user_id == OWNER_ID,
         }
     }
 
@@ -205,47 +186,51 @@ impl Bot {
         interaction: Interaction,
         data: CommandData,
     ) -> anyhow::Result<()> {
-        let command_name = data.name.clone();
-        let ephemeral = EPHEMERAL_COMMANDS.contains(&&*command_name);
-        interaction_ack(&self.http_client, &interaction, ephemeral).await?;
+        let Some(command) = Command::from_name(&data.name) else {
+            interaction_ack(&self.http_client, &interaction, false).await?;
+            let response = InteractionResponseDataBuilder::new()
+                .content(format!("Error: unknown command: {}", data.name))
+                .build();
+            return interaction_response(&self.http_client, &interaction, response).await;
+        };
+        interaction_ack(&self.http_client, &interaction, command.is_ephemeral()).await?;
 
         let user_id = interaction
             .author_id()
             .map(|id| id.get())
             .ok_or(anyhow::anyhow!("interaction without author"))?;
 
-        if !self.is_authorized(&command_name, user_id).await {
+        if !self.is_authorized(command, user_id).await {
             let response = InteractionResponseDataBuilder::new()
                 .content("You are not authorized to use this command")
                 .build();
             return interaction_response(&self.http_client, &interaction, response).await;
         }
 
-        let response = match &*command_name {
-            "balance" => BalanceCommand::handle(data, self, &interaction).await,
-            "divide" => DivideCommand::handle(data, self, &interaction).await,
-            "query" => QueryCommand::handle(data, &self.db).await,
-            "rename" => RenameCommand::handle(data, &self.db, user_id).await,
-            "rename-other" => RenameOtherCommand::handle(data, &self.db).await,
-            "register" => RegisterCommand::handle(data, &self.db).await,
-            "adjust" => AdjustCommand::handle(data, &self.db).await,
-            "db-stats" => DBStatsCommand::handle(&self.db).await,
-            "make-admin" => MakeAdminCommand::handle(data, &self.db).await,
-            "list-admins" => ListAdminsCommand::handle(&self.db, &self.http_client).await,
-            "backup-db" => match &self.github_config {
+        let response = match command {
+            Command::Balance => BalanceCommand::handle(data, self, &interaction).await,
+            Command::Divide => DivideCommand::handle(data, self, &interaction).await,
+            Command::Query => QueryCommand::handle(data, &self.db).await,
+            Command::Rename => RenameCommand::handle(data, &self.db, user_id).await,
+            Command::RenameOther => RenameOtherCommand::handle(data, &self.db).await,
+            Command::Register => RegisterCommand::handle(data, &self.db).await,
+            Command::Adjust => AdjustCommand::handle(data, &self.db).await,
+            Command::DbStats => DBStatsCommand::handle(&self.db).await,
+            Command::MakeAdmin => MakeAdminCommand::handle(data, &self.db).await,
+            Command::ListAdmins => ListAdminsCommand::handle(&self.db, &self.http_client).await,
+            Command::BackupDb => match &self.github_config {
                 Some(config) => BackupDbCommand::handle(&self.db, config).await,
                 None => Err(anyhow::anyhow!("no github config")),
             },
-            "restore-db-backup" => match &self.github_config {
+            Command::RestoreDbBackup => match &self.github_config {
                 Some(config) => RestoreDBBackupCommand::handle(&self.db, config).await,
                 None => Err(anyhow::anyhow!("no github config")),
             },
-            name => bail!("unknown command: {}", name),
         };
 
-        if response.is_ok() && MUTATING_COMMANDS.contains(&&*command_name) {
+        if response.is_ok() && command.is_mutating() {
             if let Err(e) = self.persist_db().await {
-                tracing::error!(?e, "failed to persist db after {}", command_name);
+                tracing::error!(?e, "failed to persist db after {}", command.name());
             }
             self.spawn_github_backup();
         }
