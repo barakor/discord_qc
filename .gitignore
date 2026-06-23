@@ -1,36 +1,7 @@
-pom.xml
-pom.xml.asc
-*.jar
-*.class
-/lib/
-/classes/
-/target/
-/checkouts/
-.lein-deps-sum
-.lein-repl-history
-.lein-plugins/
-.lein-failures
-.nrepl-port
-.cpcache/
-.clj-kondo
-.lsp
-
-secret.edn
-rocksdb_backup
-/new-rocksdb
-/.calva
 *.sublime-*
 /_data
-/.shadow-cljs
-/node_modules
-/public/js
 event.json
 .env
-
-
-# Added by cargo
-
-/target
 
 # Rust / Trunk
 /target
