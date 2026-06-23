@@ -55,7 +55,7 @@ async fn boot_shards(config: &EnvConfig) -> Result<(Client, Vec<Shard>)> {
         | Intents::MESSAGE_CONTENT;
     let client = Client::new(token.clone());
     let config = ConfigBuilder::new(token, intents)
-        .presence(bot_presence("Rolling Roles".into()))
+        .presence(bot_presence("Balancing Scales".into()))
         .build();
 
     let shards: Vec<Shard> =
