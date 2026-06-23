@@ -326,10 +326,10 @@ impl RegisterCommand {
 pub struct AdjustCommand {
     #[command(desc = "Tag a discord user")]
     pub discord_id: String,
-    #[command(desc = "Game Mode")]
-    pub game_mode: GameModeOption,
     #[command(desc = "Player's score for the mode")]
     pub score: f64,
+    #[command(desc = "Game Mode (defaults to Sacrifice Tournament)")]
+    pub game_mode: Option<GameModeOption>,
 }
 
 impl AdjustCommand {
@@ -344,7 +344,13 @@ impl AdjustCommand {
         let mut db = db.write().await;
         match db.elos.get_mut(&discord_id) {
             Some(elo) => {
-                elo.set_score(command.game_mode.into(), command.score);
+                elo.set_score(
+                    command
+                        .game_mode
+                        .unwrap_or(GameModeOption::SacrificeTournament)
+                        .into(),
+                    command.score,
+                );
                 Ok(Some(player_elo_embed(elo)))
             }
             None => Ok(Some(text_response("couldn't find user"))),
@@ -396,8 +402,8 @@ fn tag_ids(tags: [&Option<String>; 8]) -> BTreeSet<u64> {
 #[derive(CommandModel, CreateCommand, Debug)]
 #[command(name = "balance", desc = "Balance a Quake Champions lobby")]
 pub struct BalanceCommand {
-    #[command(desc = "Game Mode")]
-    pub game_mode: GameModeOption,
+    #[command(desc = "Game Mode (defaults to Sacrifice Tournament)")]
+    pub game_mode: Option<GameModeOption>,
     #[command(desc = "Manually add tagged discord user to lobby")]
     pub player_tag1: Option<String>,
     #[command(desc = "Manually add tagged discord user to lobby")]
@@ -433,7 +439,10 @@ impl BalanceCommand {
         let user_id = interaction
             .author_id()
             .ok_or(anyhow!("interaction without author"))?;
-        let game_mode: GameMode = command.game_mode.into();
+        let game_mode: GameMode = command
+            .game_mode
+            .unwrap_or(GameModeOption::SacrificeTournament)
+            .into();
 
         let manual_entries = tag_ids([
             &command.player_tag1,
@@ -508,8 +517,8 @@ impl BalanceCommand {
 #[derive(CommandModel, CreateCommand, Debug)]
 #[command(name = "divide", desc = "Divide hub inhabitants to other lobbies")]
 pub struct DivideCommand {
-    #[command(desc = "Game Mode")]
-    pub game_mode: GameModeOption,
+    #[command(desc = "Game Mode (defaults to Sacrifice Tournament)")]
+    pub game_mode: Option<GameModeOption>,
     #[command(desc = "Sort players before dividing them")]
     pub sort_by: Option<SortMethodOption>,
     #[command(desc = "Manually tag discord user as a spectator")]
@@ -572,7 +581,10 @@ impl DivideCommand {
             bot,
             guild_id,
             user_id,
-            command.game_mode.into(),
+            command
+                .game_mode
+                .unwrap_or(GameModeOption::SacrificeTournament)
+                .into(),
             sort_method,
             &manual_entries,
             &ignored_players,
