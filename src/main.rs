@@ -129,7 +129,16 @@ async fn main() -> Result<()> {
     let mut tasks = Vec::with_capacity(shards.len());
 
     tracing::debug!("Spawned Shards: {}", &shards.len());
-    let bot = Arc::new(Bot::new(Arc::new(client), config.github_config, config.db_path).await);
+    let bot = Arc::new(
+        Bot::new(
+            Arc::new(client),
+            config.github_config,
+            config.db_path,
+            config.home_server,
+            config.admin_role,
+        )
+        .await,
+    );
 
     for shard in shards {
         senders.push(shard.sender());

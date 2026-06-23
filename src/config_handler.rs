@@ -5,7 +5,10 @@ use std::{
     env,
     sync::atomic::{AtomicBool, Ordering},
 };
-use twilight_model::id::{marker::GuildMarker, Id};
+use twilight_model::id::{
+    marker::{GuildMarker, RoleMarker},
+    Id,
+};
 
 static CONFIG_HANDLER_STARTED: AtomicBool = AtomicBool::new(false);
 
@@ -45,10 +48,17 @@ pub struct EnvConfig {
     pub github_config: Option<GithubConfig>,
     pub db_path: String,
     pub home_server: Id<GuildMarker>,
+    pub admin_role: Id<RoleMarker>,
 }
 
 fn home_server() -> Result<Id<GuildMarker>, Error> {
     let raw = env::var("HOME_SERVER")?;
+    Ok(Id::new(raw.parse()?))
+}
+
+/// Role in `home_server` that grants admin command access.
+fn admin_role() -> Result<Id<RoleMarker>, Error> {
+    let raw = env::var("ADMIN_ROLE")?;
     Ok(Id::new(raw.parse()?))
 }
 
@@ -62,6 +72,7 @@ impl EnvConfig {
             github_config: GithubConfig::new().ok(),
             db_path: env::var("DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string()),
             home_server: home_server()?,
+            admin_role: admin_role()?,
         })
     }
 }
@@ -75,6 +86,7 @@ pub fn get_testing_config() -> Result<EnvConfig, Error> {
         github_config: GithubConfig::new().ok(),
         db_path: env::var("DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string()),
         home_server: home_server()?,
+        admin_role: admin_role()?,
     })
 }
 

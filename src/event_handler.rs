@@ -30,6 +30,10 @@ use twilight_http::Client;
 use twilight_model::application::interaction::{
     Interaction, InteractionData, application_command::CommandData,
 };
+use twilight_model::id::{
+    marker::{GuildMarker, RoleMarker},
+    Id,
+};
 use twilight_util::builder::InteractionResponseDataBuilder;
 
 pub static SHUTDOWN: AtomicBool = AtomicBool::new(false);
@@ -48,6 +52,8 @@ pub struct Bot {
     pub db_path: String,
     pub cache: Arc<InMemoryCache>,
     pub github_config: Option<GithubConfig>,
+    pub home_server: Id<GuildMarker>,
+    pub admin_role: Id<RoleMarker>,
 }
 
 impl Bot {
@@ -55,6 +61,8 @@ impl Bot {
         http_client: Arc<Client>,
         github_config: Option<GithubConfig>,
         db_path: String,
+        home_server: Id<GuildMarker>,
+        admin_role: Id<RoleMarker>,
     ) -> Self {
         let cache = Arc::new(
             InMemoryCache::builder()
@@ -75,6 +83,8 @@ impl Bot {
             db_path,
             cache,
             github_config,
+            home_server,
+            admin_role,
         }
     }
 
@@ -192,14 +202,36 @@ impl Bot {
         }
     }
 
-    /// Owner passes every check; admins come from the db.
+    /// Owner passes every check; admins must hold `admin_role` in `home_server`.
     async fn is_authorized(&self, command: Command, user_id: u64) -> bool {
         match command.permission() {
             Permission::App => true,
-            Permission::Admin => {
-                user_id == OWNER_ID || self.db.read().await.admins.contains(&user_id)
-            }
+            Permission::Admin => user_id == OWNER_ID || self.has_admin_role(user_id).await,
             Permission::Owner => user_id == OWNER_ID,
+        }
+    }
+
+    /// Whether `user_id` holds `admin_role` in `home_server`. Reads the cache
+    /// first and falls back to an HTTP member lookup if the member isn't cached.
+    async fn has_admin_role(&self, user_id: u64) -> bool {
+        let user = Id::new(user_id);
+
+        if let Some(member) = self.cache.member(self.home_server, user) {
+            return member.roles().contains(&self.admin_role);
+        }
+
+        match self.http_client.guild_member(self.home_server, user).await {
+            Ok(response) => match response.model().await {
+                Ok(member) => member.roles.contains(&self.admin_role),
+                Err(e) => {
+                    tracing::error!(?e, user_id, "failed to deserialize member for role check");
+                    false
+                }
+            },
+            Err(e) => {
+                tracing::error!(?e, user_id, "failed to fetch member for role check");
+                false
+            }
         }
     }
 
