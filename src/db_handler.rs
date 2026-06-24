@@ -19,7 +19,7 @@ pub fn player_elo_embed(elo: &PlayerElo) -> InteractionResponseData {
     let field = |name: &str, value: f64| EmbedField {
         inline: false,
         name: name.to_string(),
-        value: value.to_string(),
+        value: format!("{:.3}", value),
     };
     let embed_fields = vec![
         field("Sacrifice Tournament", elo.sacrifice_tournament),
