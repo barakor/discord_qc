@@ -246,6 +246,7 @@ impl RenameCommand {
         data: CommandData,
         db: &Arc<RwLock<Db>>,
         user_id: u64,
+        log_detail: &mut Option<String>,
     ) -> Result<Option<InteractionResponseData>> {
         let command =
             RenameCommand::from_interaction(data.into()).context("failed to parse command data")?;
@@ -253,6 +254,7 @@ impl RenameCommand {
         let mut db = db.write().await;
         match db.elos.get_mut(&user_id) {
             Some(elo) => {
+                *log_detail = Some(format!("{} -> {}", elo.quake_name, command.quake_name));
                 elo.quake_name = command.quake_name;
                 // Ok(Some(player_elo_embed(elo)))
                 Ok(Some(
@@ -279,6 +281,7 @@ impl RenameOtherCommand {
     pub async fn handle(
         data: CommandData,
         db: &Arc<RwLock<Db>>,
+        log_detail: &mut Option<String>,
     ) -> Result<Option<InteractionResponseData>> {
         let command = RenameOtherCommand::from_interaction(data.into())
             .context("failed to parse command data")?;
@@ -287,6 +290,7 @@ impl RenameOtherCommand {
         let mut db = db.write().await;
         match db.elos.get_mut(&discord_id) {
             Some(elo) => {
+                *log_detail = Some(format!("{} -> {}", elo.quake_name, command.quake_name));
                 elo.quake_name = command.quake_name;
                 Ok(Some(player_elo_embed(elo)))
             }
@@ -336,21 +340,21 @@ impl AdjustCommand {
     pub async fn handle(
         data: CommandData,
         db: &Arc<RwLock<Db>>,
+        log_detail: &mut Option<String>,
     ) -> Result<Option<InteractionResponseData>> {
         let command =
             AdjustCommand::from_interaction(data.into()).context("failed to parse command data")?;
 
         let discord_id = str_to_id(&command.discord_id)?;
+        let mode = command
+            .game_mode
+            .unwrap_or(GameModeOption::SacrificeTournament)
+            .into();
         let mut db = db.write().await;
         match db.elos.get_mut(&discord_id) {
             Some(elo) => {
-                elo.set_score(
-                    command
-                        .game_mode
-                        .unwrap_or(GameModeOption::SacrificeTournament)
-                        .into(),
-                    command.score,
-                );
+                *log_detail = Some(format!("{} -> {}", elo.score(mode), command.score));
+                elo.set_score(mode, command.score);
                 Ok(Some(player_elo_embed(elo)))
             }
             None => Ok(Some(text_response("couldn't find user"))),

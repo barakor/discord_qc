@@ -92,9 +92,12 @@ impl Bot {
     /// Post a best-effort log line to the bot-logs channel after a mutating
     /// command succeeds. Off the response path: failures are logged, never
     /// surfaced to the user.
-    fn log_mutation(&self, invocation: &str, user_id: u64) {
+    fn log_mutation(&self, invocation: &str, user_id: u64, detail: Option<&str>) {
         let http_client = self.http_client.clone();
-        let content = format!("`{}` run by <@{}>", invocation, user_id);
+        let content = match detail {
+            Some(detail) => format!("`{}` run by <@{}> ({})", invocation, user_id, detail),
+            None => format!("`{}` run by <@{}>", invocation, user_id),
+        };
         tokio::spawn(async move {
             let result = async {
                 http_client
@@ -258,14 +261,19 @@ impl Bot {
         }
 
         let invocation = render_invocation(&data);
+        let mut log_detail: Option<String> = None;
         let response = match command {
             Command::Balance => BalanceCommand::handle(data, self, &interaction).await,
             Command::Divide => DivideCommand::handle(data, self, &interaction).await,
             Command::Query => QueryCommand::handle(data, &self.db).await,
-            Command::Rename => RenameCommand::handle(data, &self.db, user_id).await,
-            Command::RenameOther => RenameOtherCommand::handle(data, &self.db).await,
+            Command::Rename => {
+                RenameCommand::handle(data, &self.db, user_id, &mut log_detail).await
+            }
+            Command::RenameOther => {
+                RenameOtherCommand::handle(data, &self.db, &mut log_detail).await
+            }
             Command::Register => RegisterCommand::handle(data, &self.db).await,
-            Command::Adjust => AdjustCommand::handle(data, &self.db).await,
+            Command::Adjust => AdjustCommand::handle(data, &self.db, &mut log_detail).await,
             Command::DbStats => DBStatsCommand::handle(&self.db).await,
             Command::BackupDb => match &self.github_config {
                 Some(config) => BackupDbCommand::handle(&self.db, config).await,
@@ -282,7 +290,7 @@ impl Bot {
                 tracing::error!(?e, "failed to persist db after {}", command.name());
             }
             self.spawn_github_backup();
-            self.log_mutation(&invocation, user_id);
+            self.log_mutation(&invocation, user_id, log_detail.as_deref());
         }
 
         match response {
