@@ -1,7 +1,8 @@
+# syntax=docker/dockerfile:1
 # Multi-stage build. Build on the Pi (or via buildx) — produces a native
 # aarch64 binary for the RPi 4. Dependencies are cached in their own layer so
 # code-only changes don't trigger a full recompile (Pi builds are slow).
-FROM rust:1-bookworm AS builder
+FROM rust:1-trixie AS builder
 
 WORKDIR /app
 
@@ -16,7 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY Cargo.toml Cargo.lock ./
 COPY crates/core/Cargo.toml crates/core/
 COPY crates/web/Cargo.toml crates/web/
-RUN mkdir -p src crates/core/src crates/web/src \
+RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-target,target=/app/target \
+    mkdir -p src crates/core/src crates/web/src \
     && echo "fn main() {}" > src/main.rs \
     && : > crates/core/src/lib.rs \
     && echo "fn main() {}" > crates/web/src/main.rs \
@@ -27,9 +30,15 @@ RUN mkdir -p src crates/core/src crates/web/src \
 
 COPY src ./src
 COPY crates/core/src ./crates/core/src
-RUN find src crates/core/src -name '*.rs' -exec touch {} + && cargo build --release
+# target/ is a cache mount (absent after the RUN), so copy the binary out to a
+# real path for the final stage to pick up.
+RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-target,target=/app/target \
+    find src crates/core/src -name '*.rs' -exec touch {} + \
+    && cargo build --release \
+    && cp target/release/discord_qc /app/discord_qc
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates libssl3 \
@@ -43,6 +52,6 @@ USER botuser
 
 ENV DB_PATH=/data/db.json
 
-COPY --from=builder /app/target/release/discord_qc /usr/local/bin/discord_qc
+COPY --from=builder /app/discord_qc /usr/local/bin/discord_qc
 
 CMD ["discord_qc"]
