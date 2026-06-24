@@ -7,10 +7,14 @@ FROM rust:1-trixie AS builder
 WORKDIR /app
 
 # Build deps: TLS for octocrab/reqwest, cmake/clang for the gateway's
-# simd/zlib features.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config libssl-dev cmake clang \
-    && rm -rf /var/lib/apt/lists/*
+# simd/zlib features. apt cache mounts keep .debs across base-image bumps so a
+# new rust:1-trixie doesn't re-download them; docker-clean would purge the
+# archive cache on install, so remove it first.
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config libssl-dev cmake clang
 
 # Cache dependency compilation: copy every workspace manifest, stub each crate
 # root, build deps, then drop the stubs for the real source.
@@ -40,9 +44,11 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
 
 FROM debian:trixie-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates libssl3 \
-    && rm -rf /var/lib/apt/lists/*
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libssl3
 
 # Run as a non-root user; /data holds the persisted db.json.
 RUN useradd -r -u 10001 botuser \
