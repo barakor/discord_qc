@@ -204,22 +204,23 @@ impl Db {
         self.name_to_id = self
             .elos
             .iter()
-            .map(|(id, elo)| (elo.quake_name.clone(), *id))
+            .map(|(id, elo)| (elo.quake_name.to_lowercase(), *id))
             .collect();
     }
 
     /// Look up a player's elo by quake name via the index.
     pub fn by_quake_name(&self, quake_name: &str) -> Option<&PlayerElo> {
-        let id = self.name_to_id.get(quake_name)?;
+        let id = self.name_to_id.get(&quake_name.to_lowercase())?;
         self.elos.get(id)
     }
 
     /// Register (or replace) a player's elo, keeping the name index in sync.
     pub fn register(&mut self, discord_id: u64, elo: PlayerElo) {
         if let Some(old) = self.elos.get(&discord_id) {
-            self.name_to_id.remove(&old.quake_name);
+            self.name_to_id.remove(&old.quake_name.to_lowercase());
         }
-        self.name_to_id.insert(elo.quake_name.clone(), discord_id);
+        self.name_to_id
+            .insert(elo.quake_name.to_lowercase(), discord_id);
         self.elos.insert(discord_id, elo);
     }
 
@@ -228,8 +229,8 @@ impl Db {
     pub fn rename(&mut self, discord_id: u64, new_name: String) -> Option<String> {
         let elo = self.elos.get_mut(&discord_id)?;
         let old_name = std::mem::replace(&mut elo.quake_name, new_name.clone());
-        self.name_to_id.remove(&old_name);
-        self.name_to_id.insert(new_name, discord_id);
+        self.name_to_id.remove(&old_name.to_lowercase());
+        self.name_to_id.insert(new_name.to_lowercase(), discord_id);
         Some(old_name)
     }
 
