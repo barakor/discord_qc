@@ -447,10 +447,9 @@ impl From<SortMethodOption> for SortMethod {
 
 /// Parse the optional player/spectator tag options into a set of ids,
 /// silently skipping anything that isn't a user mention.
-fn tag_ids(tags: [&Option<String>; 8]) -> BTreeSet<u64> {
+fn tag_ids(tags: [Option<Id<UserMarker>>; 8]) -> BTreeSet<u64> {
     tags.iter()
-        .filter_map(|tag| tag.as_deref())
-        .filter_map(|tag| str_to_id(tag).ok())
+        .filter_map(|tag| tag.map(|id| id.get()))
         .collect()
 }
 
@@ -460,21 +459,21 @@ pub struct BalanceCommand {
     #[command(desc = "Game Mode (defaults to Sacrifice Tournament)")]
     pub game_mode: Option<GameModeOption>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag1: Option<String>,
+    pub player_tag1: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag2: Option<String>,
+    pub player_tag2: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag3: Option<String>,
+    pub player_tag3: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag4: Option<String>,
+    pub player_tag4: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag5: Option<String>,
+    pub player_tag5: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag6: Option<String>,
+    pub player_tag6: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag7: Option<String>,
+    pub player_tag7: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag8: Option<String>,
+    pub player_tag8: Option<Id<UserMarker>>,
 }
 
 #[async_trait]
@@ -505,14 +504,14 @@ impl BotCommand for BalanceCommand {
             .into();
 
         let manual_entries = tag_ids([
-            &self.player_tag1,
-            &self.player_tag2,
-            &self.player_tag3,
-            &self.player_tag4,
-            &self.player_tag5,
-            &self.player_tag6,
-            &self.player_tag7,
-            &self.player_tag8,
+            self.player_tag1,
+            self.player_tag2,
+            self.player_tag3,
+            self.player_tag4,
+            self.player_tag5,
+            self.player_tag6,
+            self.player_tag7,
+            self.player_tag8,
         ]);
 
         let members = user_voice_channel(&bot.cache, guild_id, user_id)
@@ -585,21 +584,21 @@ pub struct DivideCommand {
     #[command(desc = "Sort players before dividing them")]
     pub sort_by: Option<SortMethodOption>,
     #[command(desc = "Manually tag discord user as a spectator")]
-    pub spectator_tag1: Option<String>,
+    pub spectator_tag1: Option<Id<UserMarker>>,
     #[command(desc = "Manually tag discord user as a spectator")]
-    pub spectator_tag2: Option<String>,
+    pub spectator_tag2: Option<Id<UserMarker>>,
     #[command(desc = "Manually tag discord user as a spectator")]
-    pub spectator_tag3: Option<String>,
+    pub spectator_tag3: Option<Id<UserMarker>>,
     #[command(desc = "Manually tag discord user as a spectator")]
-    pub spectator_tag4: Option<String>,
+    pub spectator_tag4: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag1: Option<String>,
+    pub player_tag1: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag2: Option<String>,
+    pub player_tag2: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag3: Option<String>,
+    pub player_tag3: Option<Id<UserMarker>>,
     #[command(desc = "Manually add tagged discord user to lobby")]
-    pub player_tag4: Option<String>,
+    pub player_tag4: Option<Id<UserMarker>>,
 }
 
 #[async_trait]
@@ -625,24 +624,24 @@ impl BotCommand for DivideCommand {
 
         let sort_method: SortMethod = self.sort_by.unwrap_or(SortMethodOption::Random).into();
         let ignored_players = tag_ids([
-            &self.spectator_tag1,
-            &self.spectator_tag2,
-            &self.spectator_tag3,
-            &self.spectator_tag4,
-            &None,
-            &None,
-            &None,
-            &None,
+            self.spectator_tag1,
+            self.spectator_tag2,
+            self.spectator_tag3,
+            self.spectator_tag4,
+            None,
+            None,
+            None,
+            None,
         ]);
         let manual_entries = tag_ids([
-            &self.player_tag1,
-            &self.player_tag2,
-            &self.player_tag3,
-            &self.player_tag4,
-            &None,
-            &None,
-            &None,
-            &None,
+            self.player_tag1,
+            self.player_tag2,
+            self.player_tag3,
+            self.player_tag4,
+            None,
+            None,
+            None,
+            None,
         ]);
 
         let response = divide_hub(
