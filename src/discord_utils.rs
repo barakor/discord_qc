@@ -231,16 +231,8 @@ fn format_team_option(
     names: &BTreeMap<u64, String>,
     title: String,
 ) -> EmbedField {
-    let team1 = format!(
-        "{}", // |  Team ELO: {:.3}",
-        team_names_by_elo(&split.team1, names),
-        // split.team1_elo_sum
-    );
-    let team2 = format!(
-        "{}", // |  Team ELO: {:.3}",
-        team_names_by_elo(&split.team2, names),
-        // split.team2_elo_sum
-    );
+    let team1 = team_names_by_elo(&split.team1, names).to_string();
+    let team2 = team_names_by_elo(&split.team2, names).to_string();
     EmbedField {
         inline: false,
         name: title,

@@ -235,7 +235,7 @@ impl BotCommand for QueryCommand {
             Err(_) => db.by_quake_name(trimmed_quaker),
         };
         let response = match user {
-            Some(user) => player_elo_embed(&user),
+            Some(user) => player_elo_embed(user),
             None => text_response("couldn't find data for user"),
         };
         Ok(HandleResponse {
