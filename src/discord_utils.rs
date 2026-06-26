@@ -360,12 +360,6 @@ pub fn trim_tags(s: &str) -> &str {
     s.trim_matches('<').trim_matches('>').trim_matches('@')
 }
 
-pub fn str_to_id(s: &str) -> Result<u64> {
-    trim_tags(s)
-        .parse::<u64>()
-        .map_err(|_| anyhow::anyhow!("Invalid ID: {}", s))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

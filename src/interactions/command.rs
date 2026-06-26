@@ -2,8 +2,8 @@ use crate::{
     balancing::SortMethod,
     db_handler::{Db, GameMode, PlayerElo, player_elo_embed},
     discord_utils::{
-        build_components_action_rows, button, str_to_id, text_response, trim_tags,
-        user_voice_channel, voice_channel_members,
+        build_components_action_rows, button, text_response, trim_tags, user_voice_channel,
+        voice_channel_members,
     },
     event_handler::Bot,
     github_handler::{get_bytes_from_github, upload_bytes_to_github},
