@@ -74,7 +74,7 @@ impl CommandSpec {
                 Box::pin(async move {
                     let command = C::from_interaction(data.clone().into())
                         .context("failed to parse command data")?;
-                    command.handle(data, bot, interaction).await
+                    command.handle(bot, interaction).await
                 })
             },
         }
@@ -115,12 +115,7 @@ pub trait BotCommand: CreateCommand + CommandModel {
     fn is_ephemeral() -> bool;
     fn is_mutating() -> bool;
     /// Handle the command, returning an optional response to send back to Discord.
-    async fn handle(
-        self,
-        data: CommandData,
-        bot: &Bot,
-        interaction: &Interaction,
-    ) -> Result<HandleResponse>;
+    async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse>;
 }
 
 /// Render a slash command invocation back to its textual form, e.g.
@@ -218,17 +213,10 @@ impl BotCommand for QueryCommand {
         false
     }
 
-    async fn handle(
-        self,
-        data: CommandData,
-        bot: &Bot,
-        _interaction: &Interaction,
-    ) -> Result<HandleResponse> {
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let db = bot.db.read().await;
-        let command =
-            QueryCommand::from_interaction(data.into()).context("failed to parse command data")?;
 
-        let trimmed_quaker = trim_tags(&command.quaker);
+        let trimmed_quaker = trim_tags(&self.quaker);
 
         let user = match trimmed_quaker.parse::<u64>() {
             Ok(discord_id) => db.elos.get(&discord_id),
@@ -264,12 +252,7 @@ impl BotCommand for RenameCommand {
         true
     }
 
-    async fn handle(
-        self,
-        _data: CommandData,
-        bot: &Bot,
-        interaction: &Interaction,
-    ) -> Result<HandleResponse> {
+    async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse> {
         let user_id = interaction
             .author_id()
             .map(|id| id.get())
@@ -315,17 +298,9 @@ impl BotCommand for RenameOtherCommand {
         true
     }
 
-    async fn handle(
-        self,
-        data: CommandData,
-        bot: &Bot,
-        _interaction: &Interaction,
-    ) -> Result<HandleResponse> {
-        let command = RenameOtherCommand::from_interaction(data.into())
-            .context("failed to parse command data")?;
-
-        let discord_id = command.discord_id.get();
-        let new_name = command.quake_name;
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let discord_id = self.discord_id.get();
+        let new_name = self.quake_name;
         let mut db = bot.db.write().await;
         match db.rename(discord_id, new_name.clone()) {
             Some(old_name) => {
@@ -366,17 +341,9 @@ impl BotCommand for RegisterCommand {
         true
     }
 
-    async fn handle(
-        self,
-        data: CommandData,
-        bot: &Bot,
-        _interaction: &Interaction,
-    ) -> Result<HandleResponse> {
-        let command = RegisterCommand::from_interaction(data.into())
-            .context("failed to parse command data")?;
-
-        let discord_id = command.discord_id.get();
-        let elo = PlayerElo::with_score(command.quake_name, command.score);
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let discord_id = self.discord_id.get();
+        let elo = PlayerElo::with_score(self.quake_name, self.score);
         bot.db.write().await.register(discord_id, elo.clone());
         Ok(HandleResponse {
             response: Some(player_elo_embed(&elo)),
@@ -408,25 +375,17 @@ impl BotCommand for AdjustCommand {
         true
     }
 
-    async fn handle(
-        self,
-        data: CommandData,
-        bot: &Bot,
-        _interaction: &Interaction,
-    ) -> Result<HandleResponse> {
-        let command =
-            AdjustCommand::from_interaction(data.into()).context("failed to parse command data")?;
-
-        let discord_id = command.discord_id.get();
-        let mode = command
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
+        let discord_id = self.discord_id.get();
+        let mode = self
             .game_mode
             .unwrap_or(GameModeOption::SacrificeTournament)
             .into();
         let mut db = bot.db.write().await;
         match db.elos.get_mut(&discord_id) {
             Some(elo) => {
-                let log_detail = Some(format!("{} -> {}", elo.score(mode), command.score));
-                elo.set_score(mode, command.score);
+                let log_detail = Some(format!("{} -> {}", elo.score(mode), self.score));
+                elo.set_score(mode, self.score);
                 Ok(HandleResponse {
                     response: Some(player_elo_embed(elo)),
                     log_detail,
@@ -456,12 +415,7 @@ impl BotCommand for DBStatsCommand {
         false
     }
 
-    async fn handle(
-        self,
-        _data: CommandData,
-        bot: &Bot,
-        _interaction: &Interaction,
-    ) -> Result<HandleResponse> {
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let players_registered = bot.db.read().await.elos.len();
         Ok(HandleResponse {
             response: Some(text_response(format!(
@@ -538,34 +492,27 @@ impl BotCommand for BalanceCommand {
     /// Post the player-selection message: one toggle button per player found
     /// in the caller's voice channel or tagged manually, plus Select All and
     /// Balance! triggers handled as component interactions.
-    async fn handle(
-        self,
-        data: CommandData,
-        bot: &Bot,
-        interaction: &Interaction,
-    ) -> Result<HandleResponse> {
-        let command = BalanceCommand::from_interaction(data.into())
-            .context("failed to parse command data")?;
+    async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse> {
         let guild_id = interaction
             .guild_id
             .ok_or(anyhow!("balance outside a guild"))?;
         let user_id = interaction
             .author_id()
             .ok_or(anyhow!("interaction without author"))?;
-        let game_mode: GameMode = command
+        let game_mode: GameMode = self
             .game_mode
             .unwrap_or(GameModeOption::SacrificeTournament)
             .into();
 
         let manual_entries = tag_ids([
-            &command.player_tag1,
-            &command.player_tag2,
-            &command.player_tag3,
-            &command.player_tag4,
-            &command.player_tag5,
-            &command.player_tag6,
-            &command.player_tag7,
-            &command.player_tag8,
+            &self.player_tag1,
+            &self.player_tag2,
+            &self.player_tag3,
+            &self.player_tag4,
+            &self.player_tag5,
+            &self.player_tag6,
+            &self.player_tag7,
+            &self.player_tag8,
         ]);
 
         let members = user_voice_channel(&bot.cache, guild_id, user_id)
@@ -667,14 +614,7 @@ impl BotCommand for DivideCommand {
         false
     }
 
-    async fn handle(
-        self,
-        data: CommandData,
-        bot: &Bot,
-        interaction: &Interaction,
-    ) -> Result<HandleResponse> {
-        let command =
-            DivideCommand::from_interaction(data.into()).context("failed to parse command data")?;
+    async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse> {
         let guild_id = interaction
             .guild_id
             .ok_or(anyhow!("divide outside a guild"))?;
@@ -683,22 +623,22 @@ impl BotCommand for DivideCommand {
             .map(|id| id.get())
             .ok_or(anyhow!("interaction without author"))?;
 
-        let sort_method: SortMethod = command.sort_by.unwrap_or(SortMethodOption::Random).into();
+        let sort_method: SortMethod = self.sort_by.unwrap_or(SortMethodOption::Random).into();
         let ignored_players = tag_ids([
-            &command.spectator_tag1,
-            &command.spectator_tag2,
-            &command.spectator_tag3,
-            &command.spectator_tag4,
+            &self.spectator_tag1,
+            &self.spectator_tag2,
+            &self.spectator_tag3,
+            &self.spectator_tag4,
             &None,
             &None,
             &None,
             &None,
         ]);
         let manual_entries = tag_ids([
-            &command.player_tag1,
-            &command.player_tag2,
-            &command.player_tag3,
-            &command.player_tag4,
+            &self.player_tag1,
+            &self.player_tag2,
+            &self.player_tag3,
+            &self.player_tag4,
             &None,
             &None,
             &None,
@@ -709,8 +649,7 @@ impl BotCommand for DivideCommand {
             bot,
             guild_id,
             user_id,
-            command
-                .game_mode
+            self.game_mode
                 .unwrap_or(GameModeOption::SacrificeTournament)
                 .into(),
             sort_method,
@@ -741,12 +680,7 @@ impl BotCommand for BackupDbCommand {
         true
     }
 
-    async fn handle(
-        self,
-        _data: CommandData,
-        bot: &Bot,
-        _interaction: &Interaction,
-    ) -> Result<HandleResponse> {
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let github_config = bot
             .github_config
             .as_ref()
@@ -786,12 +720,7 @@ impl BotCommand for RestoreDBBackupCommand {
         true
     }
 
-    async fn handle(
-        self,
-        _data: CommandData,
-        bot: &Bot,
-        _interaction: &Interaction,
-    ) -> Result<HandleResponse> {
+    async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let github_config = bot
             .github_config
             .as_ref()
