@@ -16,6 +16,15 @@ RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
     pkg-config libssl-dev cmake clang
 
+# sccache: caches compiled crate objects across builds. Wrapper for rustc; its
+# cache lives in /sccache, mounted as a cache so it survives between builds.
+# cargo-binstall pulls the latest prebuilt sccache binary (no compile).
+RUN curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
+    && cargo binstall -y sccache
+
+ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/sccache
+
 # Cache dependency compilation: copy every workspace manifest, stub each crate
 # root, build deps, then drop the stubs for the real source.
 COPY Cargo.toml Cargo.lock ./
@@ -23,6 +32,7 @@ COPY crates/core/Cargo.toml crates/core/
 COPY crates/web/Cargo.toml crates/web/
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-target,target=/app/target \
+    --mount=type=cache,id=sccache,target=/sccache \
     mkdir -p src crates/core/src crates/web/src \
     && echo "fn main() {}" > src/main.rs \
     && : > crates/core/src/lib.rs \
@@ -38,6 +48,7 @@ COPY crates/core/src ./crates/core/src
 # real path for the final stage to pick up.
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-target,target=/app/target \
+    --mount=type=cache,id=sccache,target=/sccache \
     find src crates/core/src -name '*.rs' -exec touch {} + \
     && cargo build --release \
     && cp target/release/discord_qc /app/discord_qc
