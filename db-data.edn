@@ -66,6 +66,7 @@
    "337687224751751168"
    "566728309577220110"
    "132914694313738248"
+   "banana"
    "263749028229939201"
    "737399908096540764"
    "676903065001000997"
@@ -302,6 +303,58 @@
    "108022049053659136"
    "145279562455056384"
    "171632429310672896"},
+ "discord-id->elo-map/.svoboda"
+ {:quake-name "Svoboda314",
+  :killing 3.0,
+  :tdm 3.0,
+  :sacrifice-tournament 3.0,
+  :instagib 3.0,
+  :slipgate 3.0,
+  :duel 3.0,
+  :ctf 3.0,
+  :ffa 3.0,
+  :sacrifice 3.0,
+  :objective 3.0,
+  :tdm-2v2 3.0},
+ "discord-id->elo-map/00000000000"
+ {:quake-name "JohnElo",
+  :killing 9999999.0,
+  :tdm 9999999.0,
+  :sacrifice-tournament 9999999.0,
+  :instagib 9999999.0,
+  :slipgate 9999999.0,
+  :duel 9999999.0,
+  :ctf 9999999.0,
+  :ffa 9999999.0,
+  :sacrifice 9999999.0,
+  :objective 9999999.0,
+  :tdm-2v2 9999999.0},
+ "discord-id->elo-map/0Cool"
+ {:quake-name "drjones",
+  :killing 3.0,
+  :tdm 3.0,
+  :sacrifice-tournament 3.0,
+  :instagib 3.0,
+  :slipgate 3.0,
+  :duel 3.0,
+  :ctf 3.0,
+  :ffa 3.0,
+  :sacrifice 3.0,
+  :objective 3.0,
+  :tdm-2v2 3.0},
+ "discord-id->elo-map/0cool00"
+ {:quake-name "drjones",
+  :killing 4.0,
+  :tdm 4.0,
+  :sacrifice-tournament 4.0,
+  :instagib 4.0,
+  :slipgate 4.0,
+  :duel 4.0,
+  :ctf 4.0,
+  :ffa 4.0,
+  :sacrifice 4.0,
+  :objective 4.0,
+  :tdm-2v2 4.0},
  "discord-id->elo-map/1007400834138636442"
  {:quake-name "GunGamer54001",
   :killing 5.0,
@@ -4256,6 +4309,19 @@
   :sacrifice 3.0,
   :objective 3.0,
   :tdm-2v2 3.0},
+ "discord-id->elo-map/banana"
+ {:quake-name "banana",
+  :killing 2.0,
+  :tdm 2.0,
+  :sacrifice-tournament 2.0,
+  :instagib 2.0,
+  :slipgate 2.0,
+  :duel 2.0,
+  :ctf 2.0,
+  :ffa 2.0,
+  :sacrifice 2.0,
+  :objective 2.0,
+  :tdm-2v2 2.0},
  "discord-id->elo-map/eldeibe"
  {:quake-name "eldeibe",
   :killing 5.0,
