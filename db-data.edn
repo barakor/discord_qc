@@ -60,6 +60,7 @@
    "427133921050886154"
    "234350899298828288"
    "81432841195356160"
+   "itsalez1"
    "1291044412935241828"
    "244578110094180354"
    "337687224751751168"
@@ -314,6 +315,19 @@
   :sacrifice 3.0,
   :objective 3.0,
   :tdm-2v2 3.0},
+ "discord-id->elo-map/00000000000"
+ {:quake-name "JohnElo",
+  :killing 9999999.0,
+  :tdm 9999999.0,
+  :sacrifice-tournament 9999999.0,
+  :instagib 9999999.0,
+  :slipgate 9999999.0,
+  :duel 9999999.0,
+  :ctf 9999999.0,
+  :ffa 9999999.0,
+  :sacrifice 9999999.0,
+  :objective 9999999.0,
+  :tdm-2v2 9999999.0},
  "discord-id->elo-map/0Cool"
  {:quake-name "drjones",
   :killing 3.0,
@@ -4306,4 +4320,17 @@
   :ffa 5.0,
   :sacrifice 5.0,
   :objective 5.0,
-  :tdm-2v2 5.0}}
+  :tdm-2v2 5.0},
+ "discord-id->elo-map/itsalez1"
+ {:quake-name "itsalez1",
+  :killing 3.0,
+  :tdm 3.0,
+  :sacrifice-tournament 3.0,
+  :instagib 3.0,
+  :slipgate 3.0,
+  :duel 3.0,
+  :ctf 3.0,
+  :ffa 3.0,
+  :sacrifice 3.0,
+  :objective 3.0,
+  :tdm-2v2 3.0}}
