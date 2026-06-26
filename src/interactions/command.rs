@@ -98,9 +98,13 @@ pub struct HandleResponse {
     /// Optional detail for the bot-logs audit line.
     pub log_detail: Option<String>,
 }
+
 #[async_trait::async_trait]
-pub trait BotCommand {
-    fn name() -> &'static str;
+pub trait BotCommand: CreateCommand {
+    // fn name() -> &'static str;
+    fn name() -> &'static str {
+        Self::NAME
+    }
     fn permission() -> Permission;
     fn is_ephemeral() -> bool;
     fn is_mutating() -> bool;
@@ -197,9 +201,6 @@ pub struct QueryCommand {
 
 #[async_trait]
 impl BotCommand for QueryCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::Admin
     }
@@ -245,9 +246,6 @@ pub struct RenameCommand {
 
 #[async_trait]
 impl BotCommand for RenameCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::App
     }
@@ -300,9 +298,6 @@ pub struct RenameOtherCommand {
 
 #[async_trait]
 impl BotCommand for RenameOtherCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::Admin
     }
@@ -353,9 +348,6 @@ pub struct RegisterCommand {
 
 #[async_trait]
 impl BotCommand for RegisterCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::Admin
     }
@@ -397,9 +389,6 @@ pub struct AdjustCommand {
 
 #[async_trait]
 impl BotCommand for AdjustCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::Admin
     }
@@ -447,9 +436,6 @@ pub struct DBStatsCommand {}
 
 #[async_trait]
 impl BotCommand for DBStatsCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::Admin
     }
@@ -528,9 +514,6 @@ pub struct BalanceCommand {
 
 #[async_trait]
 impl BotCommand for BalanceCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::App
     }
@@ -662,9 +645,6 @@ pub struct DivideCommand {
 
 #[async_trait]
 impl BotCommand for DivideCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::App
     }
@@ -738,9 +718,6 @@ pub struct BackupDbCommand {}
 
 #[async_trait]
 impl BotCommand for BackupDbCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::Owner
     }
@@ -785,9 +762,6 @@ pub struct RestoreDBBackupCommand {}
 
 #[async_trait]
 impl BotCommand for RestoreDBBackupCommand {
-    fn name() -> &'static str {
-        Self::NAME
-    }
     fn permission() -> Permission {
         Permission::Owner
     }
