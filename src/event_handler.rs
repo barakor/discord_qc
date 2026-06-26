@@ -9,8 +9,8 @@ use crate::{
     interactions::{
         command::{
             AdjustCommand, BackupDbCommand, BalanceCommand, Command, DBStatsCommand, DivideCommand,
-            Permission, QueryCommand, RegisterCommand,
-            RenameCommand, RenameOtherCommand, RestoreDBBackupCommand, render_invocation,
+            Permission, QueryCommand, RegisterCommand, RenameCommand, RenameOtherCommand,
+            RestoreDBBackupCommand, render_invocation,
         },
         component::handle_component,
     },
@@ -31,8 +31,8 @@ use twilight_model::application::interaction::{
     Interaction, InteractionData, application_command::CommandData,
 };
 use twilight_model::id::{
-    marker::{GuildMarker, RoleMarker},
     Id,
+    marker::{GuildMarker, RoleMarker},
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
 
@@ -43,7 +43,6 @@ pub const OWNER_ID: u64 = 88533822521507840;
 
 /// Channel that mutating commands are logged to.
 pub const LOG_CHANNEL_ID: u64 = 1519062825446670406;
-
 
 #[derive(Clone)]
 pub struct Bot {

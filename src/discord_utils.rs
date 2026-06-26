@@ -364,10 +364,12 @@ pub fn text_response(content: impl Into<String>) -> InteractionResponseData {
         .build()
 }
 
+pub fn trim_tags(s: &str) -> &str {
+    s.trim_matches('<').trim_matches('>').trim_matches('@')
+}
+
 pub fn str_to_id(s: &str) -> Result<u64> {
-    s.trim_matches('<')
-        .trim_matches('>')
-        .trim_matches('@')
+    trim_tags(s)
         .parse::<u64>()
         .map_err(|_| anyhow::anyhow!("Invalid ID: {}", s))
 }

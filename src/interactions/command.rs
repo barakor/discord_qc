@@ -3,8 +3,8 @@ use crate::{
     config_handler::GithubConfig,
     db_handler::{Db, GameMode, PlayerElo, player_elo_embed},
     discord_utils::{
-        build_components_action_rows, button, str_to_id, text_response, user_voice_channel,
-        voice_channel_members,
+        build_components_action_rows, button, str_to_id, text_response, trim_tags,
+        user_voice_channel, voice_channel_members,
     },
     event_handler::Bot,
     github_handler::{get_bytes_from_github, upload_bytes_to_github},
@@ -21,6 +21,7 @@ use twilight_model::{
     },
     channel::message::component::ButtonStyle,
     http::interaction::InteractionResponseData,
+    id::{Id, marker::UserMarker},
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
 
@@ -213,8 +214,8 @@ impl From<GameModeOption> for GameMode {
 #[derive(CommandModel, CreateCommand, Debug)]
 #[command(name = "query", desc = "Query Quake player's stats")]
 pub struct QueryCommand {
-    #[command(desc = "Tag a registered discord user")]
-    pub discord_id: String,
+    #[command(desc = "Discord Tag/ID or Quake Name")]
+    pub quaker: String,
 }
 
 impl QueryCommand {
@@ -225,11 +226,22 @@ impl QueryCommand {
         let command =
             QueryCommand::from_interaction(data.into()).context("failed to parse command data")?;
 
-        let discord_id = str_to_id(&command.discord_id)?;
-        let user = db.read().await.elos.get(&discord_id).cloned();
-        match user {
-            Some(user) => Ok(Some(player_elo_embed(&user))),
-            None => Ok(Some(text_response("couldn't find data for user"))),
+        let trimmed_quaker = trim_tags(&command.quaker);
+        match trimmed_quaker.parse::<u64>() {
+            Ok(discord_id) => {
+                let user = db.read().await.elos.get(&discord_id).cloned();
+                match user {
+                    Some(user) => Ok(Some(player_elo_embed(&user))),
+                    None => Ok(Some(text_response("couldn't find data for user"))),
+                }
+            }
+            Err(_) => {
+                let user = db.read().await.by_quake_name(trimmed_quaker).cloned();
+                match user {
+                    Some(user) => Ok(Some(player_elo_embed(&user))),
+                    None => Ok(Some(text_response("couldn't find data for user"))),
+                }
+            }
         }
     }
 }
@@ -251,15 +263,14 @@ impl RenameCommand {
         let command =
             RenameCommand::from_interaction(data.into()).context("failed to parse command data")?;
 
+        let new_name = command.quake_name;
         let mut db = db.write().await;
-        match db.elos.get_mut(&user_id) {
-            Some(elo) => {
-                *log_detail = Some(format!("{} -> {}", elo.quake_name, command.quake_name));
-                elo.quake_name = command.quake_name;
-                // Ok(Some(player_elo_embed(elo)))
+        match db.rename(user_id, new_name.clone()) {
+            Some(old_name) => {
+                *log_detail = Some(format!("{old_name} -> {new_name}"));
                 Ok(Some(
                     InteractionResponseDataBuilder::new()
-                        .content(format!("Renamed to `{}`", &elo.quake_name))
+                        .content(format!("Renamed to `{new_name}`"))
                         .build(),
                 ))
             }
@@ -272,7 +283,7 @@ impl RenameCommand {
 #[command(name = "rename-other", desc = "Rename Quaker")]
 pub struct RenameOtherCommand {
     #[command(desc = "Tag a discord user")]
-    pub discord_id: String,
+    pub discord_id: Id<UserMarker>,
     #[command(desc = "Quake Name")]
     pub quake_name: String,
 }
@@ -286,12 +297,13 @@ impl RenameOtherCommand {
         let command = RenameOtherCommand::from_interaction(data.into())
             .context("failed to parse command data")?;
 
-        let discord_id = str_to_id(&command.discord_id)?;
+        let discord_id = command.discord_id.get();
+        let new_name = command.quake_name;
         let mut db = db.write().await;
-        match db.elos.get_mut(&discord_id) {
-            Some(elo) => {
-                *log_detail = Some(format!("{} -> {}", elo.quake_name, command.quake_name));
-                elo.quake_name = command.quake_name;
+        match db.rename(discord_id, new_name.clone()) {
+            Some(old_name) => {
+                *log_detail = Some(format!("{old_name} -> {new_name}"));
+                let elo = db.elos.get(&discord_id).expect("just renamed, must exist");
                 Ok(Some(player_elo_embed(elo)))
             }
             None => Ok(Some(text_response("couldn't find user"))),
@@ -303,7 +315,7 @@ impl RenameOtherCommand {
 #[command(name = "register", desc = "Register Quaker")]
 pub struct RegisterCommand {
     #[command(desc = "Tag a discord user")]
-    pub discord_id: String,
+    pub discord_id: Id<UserMarker>,
     #[command(desc = "Quake Name")]
     pub quake_name: String,
     #[command(desc = "Player's score for all modes")]
@@ -318,9 +330,9 @@ impl RegisterCommand {
         let command = RegisterCommand::from_interaction(data.into())
             .context("failed to parse command data")?;
 
-        let discord_id = str_to_id(&command.discord_id)?;
+        let discord_id = command.discord_id.get();
         let elo = PlayerElo::with_score(command.quake_name, command.score);
-        db.write().await.elos.insert(discord_id, elo.clone());
+        db.write().await.register(discord_id, elo.clone());
         Ok(Some(player_elo_embed(&elo)))
     }
 }
@@ -329,7 +341,7 @@ impl RegisterCommand {
 #[command(name = "adjust", desc = "Adjust Quaker Mode Score")]
 pub struct AdjustCommand {
     #[command(desc = "Tag a discord user")]
-    pub discord_id: String,
+    pub discord_id: Id<UserMarker>,
     #[command(desc = "Player's score for the mode")]
     pub score: f64,
     #[command(desc = "Game Mode (defaults to Sacrifice Tournament)")]
@@ -345,7 +357,7 @@ impl AdjustCommand {
         let command =
             AdjustCommand::from_interaction(data.into()).context("failed to parse command data")?;
 
-        let discord_id = str_to_id(&command.discord_id)?;
+        let discord_id = command.discord_id.get();
         let mode = command
             .game_mode
             .unwrap_or(GameModeOption::SacrificeTournament)
