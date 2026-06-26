@@ -125,14 +125,28 @@ macro_rules! commands {
 commands! {
     Balance         => BalanceCommand,         "balance",           App,   ephemeral: false, mutating: false;
     Divide          => DivideCommand,          "divide",            App,   ephemeral: false, mutating: false;
-    Query           => QueryCommand,           "query",             Admin, ephemeral: true,  mutating: false;
     Rename          => RenameCommand,          "rename",            App,   ephemeral: true,  mutating: true;
+    Query           => QueryCommand,           "query",             Admin, ephemeral: true,  mutating: false;
     RenameOther     => RenameOtherCommand,     "rename-other",      Admin, ephemeral: true,  mutating: true;
     Register        => RegisterCommand,        "register",          Admin, ephemeral: true,  mutating: true;
     Adjust          => AdjustCommand,          "adjust",            Admin, ephemeral: true,  mutating: true;
     DbStats         => DBStatsCommand,         "db-stats",          Admin, ephemeral: true,  mutating: false;
     BackupDb        => BackupDbCommand,        "backup-db",         Owner, ephemeral: true,  mutating: true;
     RestoreDbBackup => RestoreDBBackupCommand, "restore-db-backup", Owner, ephemeral: true,  mutating: true;
+}
+
+#[async_trait::async_trait]
+trait BotCommand {
+    pub fn name() -> &'static str;
+    pub fn permission() -> Permission;
+    pub fn is_ephemeral() -> bool;
+    pub fn is_mutating() -> bool;
+    /// Handle the command, returning an optional response to send back to Discord.
+    pub async fn handle(
+        data: CommandData,
+        bot: &Bot,
+        interaction: &Interaction,
+    ) -> Result<Option<InteractionResponseData>, Option<String>>;
 }
 
 /// Render a slash command invocation back to its textual form, e.g.
@@ -218,7 +232,7 @@ pub struct QueryCommand {
     pub quaker: String,
 }
 
-impl QueryCommand {
+impl BotCommand for QueryCommand {
     pub async fn handle(
         data: CommandData,
         db: &Arc<RwLock<Db>>,
