@@ -227,21 +227,14 @@ impl QueryCommand {
             QueryCommand::from_interaction(data.into()).context("failed to parse command data")?;
 
         let trimmed_quaker = trim_tags(&command.quaker);
-        match trimmed_quaker.parse::<u64>() {
-            Ok(discord_id) => {
-                let user = db.read().await.elos.get(&discord_id).cloned();
-                match user {
-                    Some(user) => Ok(Some(player_elo_embed(&user))),
-                    None => Ok(Some(text_response("couldn't find data for user"))),
-                }
-            }
-            Err(_) => {
-                let user = db.read().await.by_quake_name(trimmed_quaker).cloned();
-                match user {
-                    Some(user) => Ok(Some(player_elo_embed(&user))),
-                    None => Ok(Some(text_response("couldn't find data for user"))),
-                }
-            }
+        let db = db.read().await;
+        let user = match trimmed_quaker.parse::<u64>() {
+            Ok(discord_id) => db.elos.get(&discord_id),
+            Err(_) => db.by_quake_name(trimmed_quaker),
+        };
+        match user {
+            Some(user) => Ok(Some(player_elo_embed(&user))),
+            None => Ok(Some(text_response("couldn't find data for user"))),
         }
     }
 }
