@@ -8,9 +8,9 @@ use crate::{
     github_handler::upload_bytes_to_github,
     interactions::{
         command::{
-            AdjustCommand, BackupDbCommand, BalanceCommand, Command, DBStatsCommand, DivideCommand,
-            Permission, QueryCommand, RegisterCommand, RenameCommand, RenameOtherCommand,
-            RestoreDBBackupCommand, render_invocation,
+            AdjustCommand, BackupDbCommand, BalanceCommand, BotCommand, Command, DBStatsCommand,
+            DivideCommand, Permission, QueryCommand, RegisterCommand, RenameCommand,
+            RenameOtherCommand, RestoreDBBackupCommand, render_invocation,
         },
         component::handle_component,
     },
@@ -264,7 +264,7 @@ impl Bot {
         let response = match command {
             Command::Balance => BalanceCommand::handle(data, self, &interaction).await,
             Command::Divide => DivideCommand::handle(data, self, &interaction).await,
-            Command::Query => QueryCommand::handle(data, &self.db).await,
+            Command::Query => QueryCommand::handle(data, self, &interaction).await,
             Command::Rename => {
                 RenameCommand::handle(data, &self.db, user_id, &mut log_detail).await
             }

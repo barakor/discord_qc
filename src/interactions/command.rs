@@ -11,6 +11,7 @@ use crate::{
     interactions::utils::{divide_hub, named_elos},
 };
 use anyhow::{Context, Result, anyhow};
+use async_trait::async_trait;
 use std::{collections::BTreeSet, sync::Arc};
 use tokio::sync::RwLock;
 use twilight_interactions::command::{CommandModel, CommandOption, CreateCommand, CreateOption};
@@ -135,18 +136,24 @@ commands! {
     RestoreDbBackup => RestoreDBBackupCommand, "restore-db-backup", Owner, ephemeral: true,  mutating: true;
 }
 
+pub struct HandleResponse {
+    /// Optional response to send back to Discord.
+    pub response: Option<InteractionResponseData>,
+    /// Optional detail for the bot-logs audit line.
+    pub log_detail: Option<String>,
+}
 #[async_trait::async_trait]
-trait BotCommand {
-    pub fn name() -> &'static str;
-    pub fn permission() -> Permission;
-    pub fn is_ephemeral() -> bool;
-    pub fn is_mutating() -> bool;
+pub trait BotCommand {
+    fn name() -> &'static str;
+    fn permission() -> Permission;
+    fn is_ephemeral() -> bool;
+    fn is_mutating() -> bool;
     /// Handle the command, returning an optional response to send back to Discord.
-    pub async fn handle(
+    async fn handle(
         data: CommandData,
         bot: &Bot,
         interaction: &Interaction,
-    ) -> Result<Option<InteractionResponseData>, Option<String>>;
+    ) -> Result<HandleResponse>;
 }
 
 /// Render a slash command invocation back to its textual form, e.g.
@@ -232,24 +239,44 @@ pub struct QueryCommand {
     pub quaker: String,
 }
 
+#[async_trait]
 impl BotCommand for QueryCommand {
-    pub async fn handle(
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::Admin
+    }
+    fn is_ephemeral() -> bool {
+        true
+    }
+    fn is_mutating() -> bool {
+        false
+    }
+
+    async fn handle(
         data: CommandData,
-        db: &Arc<RwLock<Db>>,
-    ) -> Result<Option<InteractionResponseData>> {
+        bot: &Bot,
+        _interaction: &Interaction,
+    ) -> Result<HandleResponse> {
+        let db = bot.db.read().await;
         let command =
             QueryCommand::from_interaction(data.into()).context("failed to parse command data")?;
 
         let trimmed_quaker = trim_tags(&command.quaker);
-        let db = db.read().await;
+
         let user = match trimmed_quaker.parse::<u64>() {
             Ok(discord_id) => db.elos.get(&discord_id),
             Err(_) => db.by_quake_name(trimmed_quaker),
         };
-        match user {
-            Some(user) => Ok(Some(player_elo_embed(&user))),
-            None => Ok(Some(text_response("couldn't find data for user"))),
-        }
+        let response = match user {
+            Some(user) => player_elo_embed(&user),
+            None => text_response("couldn't find data for user"),
+        };
+        Ok(HandleResponse {
+            response: Some(response),
+            log_detail: None,
+        })
     }
 }
 

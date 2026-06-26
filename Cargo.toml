@@ -36,6 +36,7 @@ twilight-util = { version = "0.16.0", features = [
     "builder",
     "permission-calculator",
 ] }
+async-trait = "0.1.89"
 
 [dev-dependencies]
 ctor = "1.0.7"
