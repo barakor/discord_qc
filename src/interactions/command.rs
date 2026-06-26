@@ -70,7 +70,13 @@ impl CommandSpec {
             is_ephemeral: C::is_ephemeral(),
             is_mutating: C::is_mutating(),
             create: || C::create_command().into(),
-            handle: |data, bot, interaction| C::handle(C, data, bot, interaction),
+            handle: |data, bot, interaction| {
+                Box::pin(async move {
+                    let command = C::from_interaction(data.clone().into())
+                        .context("failed to parse command data")?;
+                    command.handle(data, bot, interaction).await
+                })
+            },
         }
     }
 }
@@ -260,7 +266,7 @@ impl BotCommand for RenameCommand {
 
     async fn handle(
         self,
-        data: CommandData,
+        _data: CommandData,
         bot: &Bot,
         interaction: &Interaction,
     ) -> Result<HandleResponse> {
