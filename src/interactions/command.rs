@@ -70,7 +70,7 @@ impl CommandSpec {
             is_ephemeral: C::is_ephemeral(),
             is_mutating: C::is_mutating(),
             create: || C::create_command().into(),
-            handle: |data, bot, interaction| C::handle(data, bot, interaction),
+            handle: |data, bot, interaction| C::handle(C, data, bot, interaction),
         }
     }
 }
@@ -100,7 +100,7 @@ pub struct HandleResponse {
 }
 
 #[async_trait::async_trait]
-pub trait BotCommand: CreateCommand {
+pub trait BotCommand: CreateCommand + CommandModel {
     // fn name() -> &'static str;
     fn name() -> &'static str {
         Self::NAME
@@ -110,6 +110,7 @@ pub trait BotCommand: CreateCommand {
     fn is_mutating() -> bool;
     /// Handle the command, returning an optional response to send back to Discord.
     async fn handle(
+        self,
         data: CommandData,
         bot: &Bot,
         interaction: &Interaction,
@@ -212,6 +213,7 @@ impl BotCommand for QueryCommand {
     }
 
     async fn handle(
+        self,
         data: CommandData,
         bot: &Bot,
         _interaction: &Interaction,
@@ -257,6 +259,7 @@ impl BotCommand for RenameCommand {
     }
 
     async fn handle(
+        self,
         data: CommandData,
         bot: &Bot,
         interaction: &Interaction,
@@ -265,10 +268,8 @@ impl BotCommand for RenameCommand {
             .author_id()
             .map(|id| id.get())
             .ok_or(anyhow!("interaction without author"))?;
-        let command =
-            RenameCommand::from_interaction(data.into()).context("failed to parse command data")?;
+        let new_name = self.quake_name;
 
-        let new_name = command.quake_name;
         let mut db = bot.db.write().await;
         match db.rename(user_id, new_name.clone()) {
             Some(old_name) => Ok(HandleResponse {
@@ -309,6 +310,7 @@ impl BotCommand for RenameOtherCommand {
     }
 
     async fn handle(
+        self,
         data: CommandData,
         bot: &Bot,
         _interaction: &Interaction,
@@ -359,6 +361,7 @@ impl BotCommand for RegisterCommand {
     }
 
     async fn handle(
+        self,
         data: CommandData,
         bot: &Bot,
         _interaction: &Interaction,
@@ -400,6 +403,7 @@ impl BotCommand for AdjustCommand {
     }
 
     async fn handle(
+        self,
         data: CommandData,
         bot: &Bot,
         _interaction: &Interaction,
@@ -447,6 +451,7 @@ impl BotCommand for DBStatsCommand {
     }
 
     async fn handle(
+        self,
         _data: CommandData,
         bot: &Bot,
         _interaction: &Interaction,
@@ -528,6 +533,7 @@ impl BotCommand for BalanceCommand {
     /// in the caller's voice channel or tagged manually, plus Select All and
     /// Balance! triggers handled as component interactions.
     async fn handle(
+        self,
         data: CommandData,
         bot: &Bot,
         interaction: &Interaction,
@@ -656,6 +662,7 @@ impl BotCommand for DivideCommand {
     }
 
     async fn handle(
+        self,
         data: CommandData,
         bot: &Bot,
         interaction: &Interaction,
@@ -729,6 +736,7 @@ impl BotCommand for BackupDbCommand {
     }
 
     async fn handle(
+        self,
         _data: CommandData,
         bot: &Bot,
         _interaction: &Interaction,
@@ -773,6 +781,7 @@ impl BotCommand for RestoreDBBackupCommand {
     }
 
     async fn handle(
+        self,
         _data: CommandData,
         bot: &Bot,
         _interaction: &Interaction,
