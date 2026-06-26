@@ -7,11 +7,7 @@ use crate::{
     events::pubobot::balance_pubobot_queue,
     github_handler::upload_bytes_to_github,
     interactions::{
-        command::{
-            AdjustCommand, BackupDbCommand, BalanceCommand, BotCommand, Command, DBStatsCommand,
-            DivideCommand, Permission, QueryCommand, RegisterCommand, RenameCommand,
-            RenameOtherCommand, RestoreDBBackupCommand, render_invocation,
-        },
+        command::{HandleResponse, Permission, commands, render_invocation},
         component::handle_component,
     },
 };
@@ -200,8 +196,8 @@ impl Bot {
     }
 
     /// Owner passes every check; admins must hold `admin_role` in `home_server`.
-    async fn is_authorized(&self, command: Command, user_id: u64) -> bool {
-        match command.permission() {
+    async fn is_authorized(&self, permission: Permission, user_id: u64) -> bool {
+        match permission {
             Permission::App => true,
             Permission::Admin => user_id == OWNER_ID || self.has_admin_role(user_id).await,
             Permission::Owner => user_id == OWNER_ID,
@@ -238,21 +234,22 @@ impl Bot {
         interaction: Interaction,
         data: CommandData,
     ) -> anyhow::Result<()> {
-        let Some(command) = Command::from_name(&data.name) else {
+        let specs = commands();
+        let Some(spec) = specs.into_iter().find(|spec| spec.name == data.name) else {
             interaction_ack(&self.http_client, &interaction, false).await?;
             let response = InteractionResponseDataBuilder::new()
                 .content(format!("Error: unknown command: {}", data.name))
                 .build();
             return interaction_response(&self.http_client, &interaction, response).await;
         };
-        interaction_ack(&self.http_client, &interaction, command.is_ephemeral()).await?;
+        interaction_ack(&self.http_client, &interaction, spec.is_ephemeral).await?;
 
         let user_id = interaction
             .author_id()
             .map(|id| id.get())
             .ok_or(anyhow::anyhow!("interaction without author"))?;
 
-        if !self.is_authorized(command, user_id).await {
+        if !self.is_authorized(spec.permission, user_id).await {
             let response = InteractionResponseDataBuilder::new()
                 .content("You are not authorized to use this command")
                 .build();
@@ -260,43 +257,27 @@ impl Bot {
         }
 
         let invocation = render_invocation(&data);
-        let mut log_detail: Option<String> = None;
-        let response = match command {
-            Command::Balance => BalanceCommand::handle(data, self, &interaction).await,
-            Command::Divide => DivideCommand::handle(data, self, &interaction).await,
-            Command::Query => QueryCommand::handle(data, self, &interaction).await,
-            Command::Rename => {
-                RenameCommand::handle(data, &self.db, user_id, &mut log_detail).await
-            }
-            Command::RenameOther => {
-                RenameOtherCommand::handle(data, &self.db, &mut log_detail).await
-            }
-            Command::Register => RegisterCommand::handle(data, &self.db).await,
-            Command::Adjust => AdjustCommand::handle(data, &self.db, &mut log_detail).await,
-            Command::DbStats => DBStatsCommand::handle(&self.db).await,
-            Command::BackupDb => match &self.github_config {
-                Some(config) => BackupDbCommand::handle(&self.db, config).await,
-                None => Err(anyhow::anyhow!("no github config")),
-            },
-            Command::RestoreDbBackup => match &self.github_config {
-                Some(config) => RestoreDBBackupCommand::handle(&self.db, config).await,
-                None => Err(anyhow::anyhow!("no github config")),
-            },
-        };
-
-        if response.is_ok() && command.is_mutating() {
-            if let Err(e) = self.persist_db().await {
-                tracing::error!(?e, "failed to persist db after {}", command.name());
-            }
-            self.spawn_github_backup();
-            self.log_mutation(&invocation, user_id, log_detail.as_deref());
-        }
+        let response = (spec.handle)(data, self, &interaction).await;
 
         match response {
-            Ok(Some(response)) => {
-                interaction_response(&self.http_client, &interaction, response).await
+            Ok(HandleResponse {
+                response,
+                log_detail,
+            }) => {
+                if spec.is_mutating {
+                    if let Err(e) = self.persist_db().await {
+                        tracing::error!(?e, "failed to persist db after {}", spec.name);
+                    }
+                    self.spawn_github_backup();
+                    self.log_mutation(&invocation, user_id, log_detail.as_deref());
+                }
+                match response {
+                    Some(response) => {
+                        interaction_response(&self.http_client, &interaction, response).await
+                    }
+                    None => interaction_end(&self.http_client, &interaction).await,
+                }
             }
-            Ok(None) => interaction_end(&self.http_client, &interaction).await,
             Err(e) => {
                 tracing::error!(?e, "error handling command");
                 let error_response = InteractionResponseDataBuilder::new()

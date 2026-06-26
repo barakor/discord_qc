@@ -1,6 +1,5 @@
 use crate::{
     balancing::SortMethod,
-    config_handler::GithubConfig,
     db_handler::{Db, GameMode, PlayerElo, player_elo_embed},
     discord_utils::{
         build_components_action_rows, button, str_to_id, text_response, trim_tags,
@@ -12,8 +11,7 @@ use crate::{
 };
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
-use std::{collections::BTreeSet, sync::Arc};
-use tokio::sync::RwLock;
+use std::{collections::BTreeSet, future::Future, pin::Pin};
 use twilight_interactions::command::{CommandModel, CommandOption, CreateCommand, CreateOption};
 use twilight_model::{
     application::interaction::{
@@ -37,103 +35,61 @@ pub enum Permission {
     Owner,
 }
 
-/// Compile-time equality of two `&str` (`==` isn't const for strings yet).
-const fn str_eq(a: &str, b: &str) -> bool {
-    let (a, b) = (a.as_bytes(), b.as_bytes());
-    if a.len() != b.len() {
-        return false;
-    }
-    let mut i = 0;
-    while i < a.len() {
-        if a[i] != b[i] {
-            return false;
-        }
-        i += 1;
-    }
-    true
+/// Future returned by a command's dispatch thunk. Mirrors the boxed future
+/// `#[async_trait]` produces for [`BotCommand::handle`].
+type HandleFuture<'a> = Pin<Box<dyn Future<Output = Result<HandleResponse>> + Send + 'a>>;
+
+/// Runtime descriptor for one slash command, built from its [`BotCommand`]
+/// impl. This replaces the old `commands!` macro + `Command` enum: the trait
+/// impls are now the single source of truth, and [`commands`] lists each one
+/// once. Adding a command means adding its `BotCommand` impl and one line in
+/// [`commands`].
+pub struct CommandSpec {
+    /// Discord wire name (from `CreateCommand::NAME`).
+    pub name: &'static str,
+    /// Authorization tier required to run it.
+    pub permission: Permission,
+    /// Response is only shown to the invoking user.
+    pub is_ephemeral: bool,
+    /// Mutates the db; success triggers a persist + github backup.
+    pub is_mutating: bool,
+    /// Build the Discord registration payload.
+    pub create: fn() -> twilight_model::application::command::Command,
+    /// Dispatch an invocation to the command's handler.
+    pub handle: for<'a> fn(CommandData, &'a Bot, &'a Interaction) -> HandleFuture<'a>,
 }
 
-/// The single source of truth for every slash command. Each row is:
-///
-/// ```text
-/// Variant => StructType, "wire-name", Permission, ephemeral: bool, mutating: bool;
-/// ```
-///
-/// From this one table the macro generates the `Command` enum and all of its
-/// metadata accessors (`name`, `from_name`, `permission`, `is_ephemeral`,
-/// `is_mutating`), plus a per-row compile-time assertion that the wire name
-/// matches the struct's `#[command(name = ...)]` (via `CreateCommand::NAME`).
-///
-/// Adding a command means adding ONE row here. Its name check is generated
-/// automatically, and the exhaustive `match` in `handle_command` then fails to
-/// compile until you wire the handler — so a new command can't be half-added.
-macro_rules! commands {
-    ($(
-        $variant:ident => $struct:ty, $name:literal, $perm:ident,
-        ephemeral: $eph:literal, mutating: $mutating:literal
-    );* $(;)?) => {
-        /// Every slash command the bot handles.
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub enum Command {
-            $($variant),*
+impl CommandSpec {
+    /// Derive a spec from a `BotCommand` impl. The wire name comes from
+    /// `CreateCommand::NAME` via `C::name()`, so registration and dispatch can
+    /// never drift from the `#[command(name = ...)]` attribute.
+    fn of<C: BotCommand + CreateCommand>() -> Self {
+        Self {
+            name: C::name(),
+            permission: C::permission(),
+            is_ephemeral: C::is_ephemeral(),
+            is_mutating: C::is_mutating(),
+            create: || C::create_command().into(),
+            handle: |data, bot, interaction| C::handle(data, bot, interaction),
         }
-
-        impl Command {
-            /// Discord wire name, matching each struct's `#[command(name = ...)]`.
-            pub const fn name(self) -> &'static str {
-                match self {
-                    $(Command::$variant => $name),*
-                }
-            }
-
-            /// Parse an incoming interaction's command name.
-            pub fn from_name(name: &str) -> Option<Self> {
-                Some(match name {
-                    $($name => Command::$variant,)*
-                    _ => return None,
-                })
-            }
-
-            /// Authorization tier required to run this command.
-            pub fn permission(self) -> Permission {
-                match self {
-                    $(Command::$variant => Permission::$perm),*
-                }
-            }
-
-            /// Response is only shown to the invoking user.
-            pub fn is_ephemeral(self) -> bool {
-                match self {
-                    $(Command::$variant => $eph),*
-                }
-            }
-
-            /// Mutates the db; success triggers a persist + github backup.
-            pub fn is_mutating(self) -> bool {
-                match self {
-                    $(Command::$variant => $mutating),*
-                }
-            }
-        }
-
-        // Build fails if any row's wire name drifts from the struct's macro name.
-        const _: () = {
-            $(assert!(str_eq(<$struct>::NAME, Command::$variant.name()));)*
-        };
-    };
+    }
 }
 
-commands! {
-    Balance         => BalanceCommand,         "balance",           App,   ephemeral: false, mutating: false;
-    Divide          => DivideCommand,          "divide",            App,   ephemeral: false, mutating: false;
-    Rename          => RenameCommand,          "rename",            App,   ephemeral: true,  mutating: true;
-    Query           => QueryCommand,           "query",             Admin, ephemeral: true,  mutating: false;
-    RenameOther     => RenameOtherCommand,     "rename-other",      Admin, ephemeral: true,  mutating: true;
-    Register        => RegisterCommand,        "register",          Admin, ephemeral: true,  mutating: true;
-    Adjust          => AdjustCommand,          "adjust",            Admin, ephemeral: true,  mutating: true;
-    DbStats         => DBStatsCommand,         "db-stats",          Admin, ephemeral: true,  mutating: false;
-    BackupDb        => BackupDbCommand,        "backup-db",         Owner, ephemeral: true,  mutating: true;
-    RestoreDbBackup => RestoreDBBackupCommand, "restore-db-backup", Owner, ephemeral: true,  mutating: true;
+/// Every slash command the bot handles — the single registration point used by
+/// both Discord command registration and interaction dispatch.
+pub fn commands() -> Vec<CommandSpec> {
+    vec![
+        CommandSpec::of::<BalanceCommand>(),
+        CommandSpec::of::<DivideCommand>(),
+        CommandSpec::of::<RenameCommand>(),
+        CommandSpec::of::<QueryCommand>(),
+        CommandSpec::of::<RenameOtherCommand>(),
+        CommandSpec::of::<RegisterCommand>(),
+        CommandSpec::of::<AdjustCommand>(),
+        CommandSpec::of::<DBStatsCommand>(),
+        CommandSpec::of::<BackupDbCommand>(),
+        CommandSpec::of::<RestoreDBBackupCommand>(),
+    ]
 }
 
 pub struct HandleResponse {
@@ -287,28 +243,48 @@ pub struct RenameCommand {
     pub quake_name: String,
 }
 
-impl RenameCommand {
-    pub async fn handle(
+#[async_trait]
+impl BotCommand for RenameCommand {
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::App
+    }
+    fn is_ephemeral() -> bool {
+        true
+    }
+    fn is_mutating() -> bool {
+        true
+    }
+
+    async fn handle(
         data: CommandData,
-        db: &Arc<RwLock<Db>>,
-        user_id: u64,
-        log_detail: &mut Option<String>,
-    ) -> Result<Option<InteractionResponseData>> {
+        bot: &Bot,
+        interaction: &Interaction,
+    ) -> Result<HandleResponse> {
+        let user_id = interaction
+            .author_id()
+            .map(|id| id.get())
+            .ok_or(anyhow!("interaction without author"))?;
         let command =
             RenameCommand::from_interaction(data.into()).context("failed to parse command data")?;
 
         let new_name = command.quake_name;
-        let mut db = db.write().await;
+        let mut db = bot.db.write().await;
         match db.rename(user_id, new_name.clone()) {
-            Some(old_name) => {
-                *log_detail = Some(format!("{old_name} -> {new_name}"));
-                Ok(Some(
+            Some(old_name) => Ok(HandleResponse {
+                response: Some(
                     InteractionResponseDataBuilder::new()
                         .content(format!("Renamed to `{new_name}`"))
                         .build(),
-                ))
-            }
-            None => Ok(Some(text_response("couldn't find user"))),
+                ),
+                log_detail: Some(format!("{old_name} -> {new_name}")),
+            }),
+            None => Ok(HandleResponse {
+                response: Some(text_response("couldn't find user")),
+                log_detail: None,
+            }),
         }
     }
 }
@@ -322,25 +298,44 @@ pub struct RenameOtherCommand {
     pub quake_name: String,
 }
 
-impl RenameOtherCommand {
-    pub async fn handle(
+#[async_trait]
+impl BotCommand for RenameOtherCommand {
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::Admin
+    }
+    fn is_ephemeral() -> bool {
+        true
+    }
+    fn is_mutating() -> bool {
+        true
+    }
+
+    async fn handle(
         data: CommandData,
-        db: &Arc<RwLock<Db>>,
-        log_detail: &mut Option<String>,
-    ) -> Result<Option<InteractionResponseData>> {
+        bot: &Bot,
+        _interaction: &Interaction,
+    ) -> Result<HandleResponse> {
         let command = RenameOtherCommand::from_interaction(data.into())
             .context("failed to parse command data")?;
 
         let discord_id = command.discord_id.get();
         let new_name = command.quake_name;
-        let mut db = db.write().await;
+        let mut db = bot.db.write().await;
         match db.rename(discord_id, new_name.clone()) {
             Some(old_name) => {
-                *log_detail = Some(format!("{old_name} -> {new_name}"));
                 let elo = db.elos.get(&discord_id).expect("just renamed, must exist");
-                Ok(Some(player_elo_embed(elo)))
+                Ok(HandleResponse {
+                    response: Some(player_elo_embed(elo)),
+                    log_detail: Some(format!("{old_name} -> {new_name}")),
+                })
             }
-            None => Ok(Some(text_response("couldn't find user"))),
+            None => Ok(HandleResponse {
+                response: Some(text_response("couldn't find user")),
+                log_detail: None,
+            }),
         }
     }
 }
@@ -356,18 +351,36 @@ pub struct RegisterCommand {
     pub score: f64,
 }
 
-impl RegisterCommand {
-    pub async fn handle(
+#[async_trait]
+impl BotCommand for RegisterCommand {
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::Admin
+    }
+    fn is_ephemeral() -> bool {
+        true
+    }
+    fn is_mutating() -> bool {
+        true
+    }
+
+    async fn handle(
         data: CommandData,
-        db: &Arc<RwLock<Db>>,
-    ) -> Result<Option<InteractionResponseData>> {
+        bot: &Bot,
+        _interaction: &Interaction,
+    ) -> Result<HandleResponse> {
         let command = RegisterCommand::from_interaction(data.into())
             .context("failed to parse command data")?;
 
         let discord_id = command.discord_id.get();
         let elo = PlayerElo::with_score(command.quake_name, command.score);
-        db.write().await.register(discord_id, elo.clone());
-        Ok(Some(player_elo_embed(&elo)))
+        bot.db.write().await.register(discord_id, elo.clone());
+        Ok(HandleResponse {
+            response: Some(player_elo_embed(&elo)),
+            log_detail: None,
+        })
     }
 }
 
@@ -382,12 +395,26 @@ pub struct AdjustCommand {
     pub game_mode: Option<GameModeOption>,
 }
 
-impl AdjustCommand {
-    pub async fn handle(
+#[async_trait]
+impl BotCommand for AdjustCommand {
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::Admin
+    }
+    fn is_ephemeral() -> bool {
+        true
+    }
+    fn is_mutating() -> bool {
+        true
+    }
+
+    async fn handle(
         data: CommandData,
-        db: &Arc<RwLock<Db>>,
-        log_detail: &mut Option<String>,
-    ) -> Result<Option<InteractionResponseData>> {
+        bot: &Bot,
+        _interaction: &Interaction,
+    ) -> Result<HandleResponse> {
         let command =
             AdjustCommand::from_interaction(data.into()).context("failed to parse command data")?;
 
@@ -396,14 +423,20 @@ impl AdjustCommand {
             .game_mode
             .unwrap_or(GameModeOption::SacrificeTournament)
             .into();
-        let mut db = db.write().await;
+        let mut db = bot.db.write().await;
         match db.elos.get_mut(&discord_id) {
             Some(elo) => {
-                *log_detail = Some(format!("{} -> {}", elo.score(mode), command.score));
+                let log_detail = Some(format!("{} -> {}", elo.score(mode), command.score));
                 elo.set_score(mode, command.score);
-                Ok(Some(player_elo_embed(elo)))
+                Ok(HandleResponse {
+                    response: Some(player_elo_embed(elo)),
+                    log_detail,
+                })
             }
-            None => Ok(Some(text_response("couldn't find user"))),
+            None => Ok(HandleResponse {
+                response: Some(text_response("couldn't find user")),
+                log_detail: None,
+            }),
         }
     }
 }
@@ -412,13 +445,34 @@ impl AdjustCommand {
 #[command(name = "db-stats", desc = "Get stats about the db")]
 pub struct DBStatsCommand {}
 
-impl DBStatsCommand {
-    pub async fn handle(db: &Arc<RwLock<Db>>) -> Result<Option<InteractionResponseData>> {
-        let players_registered = db.read().await.elos.len();
-        Ok(Some(text_response(format!(
-            "# Of players registered in db: {}",
-            players_registered
-        ))))
+#[async_trait]
+impl BotCommand for DBStatsCommand {
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::Admin
+    }
+    fn is_ephemeral() -> bool {
+        true
+    }
+    fn is_mutating() -> bool {
+        false
+    }
+
+    async fn handle(
+        _data: CommandData,
+        bot: &Bot,
+        _interaction: &Interaction,
+    ) -> Result<HandleResponse> {
+        let players_registered = bot.db.read().await.elos.len();
+        Ok(HandleResponse {
+            response: Some(text_response(format!(
+                "# Of players registered in db: {}",
+                players_registered
+            ))),
+            log_detail: None,
+        })
     }
 }
 
@@ -472,15 +526,29 @@ pub struct BalanceCommand {
     pub player_tag8: Option<String>,
 }
 
-impl BalanceCommand {
+#[async_trait]
+impl BotCommand for BalanceCommand {
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::App
+    }
+    fn is_ephemeral() -> bool {
+        false
+    }
+    fn is_mutating() -> bool {
+        false
+    }
+
     /// Post the player-selection message: one toggle button per player found
     /// in the caller's voice channel or tagged manually, plus Select All and
     /// Balance! triggers handled as component interactions.
-    pub async fn handle(
+    async fn handle(
         data: CommandData,
         bot: &Bot,
         interaction: &Interaction,
-    ) -> Result<Option<InteractionResponseData>> {
+    ) -> Result<HandleResponse> {
         let command = BalanceCommand::from_interaction(data.into())
             .context("failed to parse command data")?;
         let guild_id = interaction
@@ -555,12 +623,15 @@ impl BalanceCommand {
         }
         content_lines.push(format!("Balancing for {}", game_mode.name()));
 
-        Ok(Some(
-            InteractionResponseDataBuilder::new()
-                .content(content_lines.join("\n"))
-                .components(build_components_action_rows(buttons))
-                .build(),
-        ))
+        Ok(HandleResponse {
+            response: Some(
+                InteractionResponseDataBuilder::new()
+                    .content(content_lines.join("\n"))
+                    .components(build_components_action_rows(buttons))
+                    .build(),
+            ),
+            log_detail: None,
+        })
     }
 }
 
@@ -589,12 +660,26 @@ pub struct DivideCommand {
     pub player_tag4: Option<String>,
 }
 
-impl DivideCommand {
-    pub async fn handle(
+#[async_trait]
+impl BotCommand for DivideCommand {
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::App
+    }
+    fn is_ephemeral() -> bool {
+        false
+    }
+    fn is_mutating() -> bool {
+        false
+    }
+
+    async fn handle(
         data: CommandData,
         bot: &Bot,
         interaction: &Interaction,
-    ) -> Result<Option<InteractionResponseData>> {
+    ) -> Result<HandleResponse> {
         let command =
             DivideCommand::from_interaction(data.into()).context("failed to parse command data")?;
         let guild_id = interaction
@@ -640,7 +725,10 @@ impl DivideCommand {
             &ignored_players,
         )
         .await?;
-        Ok(Some(response))
+        Ok(HandleResponse {
+            response: Some(response),
+            log_detail: None,
+        })
     }
 }
 
@@ -648,12 +736,31 @@ impl DivideCommand {
 #[command(name = "backup-db", desc = "Backup DB to github")]
 pub struct BackupDbCommand {}
 
-impl BackupDbCommand {
-    pub async fn handle(
-        db: &Arc<RwLock<Db>>,
-        github_config: &GithubConfig,
-    ) -> Result<Option<InteractionResponseData>> {
-        let json = db.read().await.to_json()?;
+#[async_trait]
+impl BotCommand for BackupDbCommand {
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::Owner
+    }
+    fn is_ephemeral() -> bool {
+        true
+    }
+    fn is_mutating() -> bool {
+        true
+    }
+
+    async fn handle(
+        _data: CommandData,
+        bot: &Bot,
+        _interaction: &Interaction,
+    ) -> Result<HandleResponse> {
+        let github_config = bot
+            .github_config
+            .as_ref()
+            .ok_or(anyhow!("no github config"))?;
+        let json = bot.db.read().await.to_json()?;
         upload_bytes_to_github(
             &json.into(),
             &github_config.owner,
@@ -662,10 +769,13 @@ impl BackupDbCommand {
             &github_config.branch,
         )
         .await?;
-        Ok(Some(text_response(format!(
-            "https://raw.githubusercontent.com/{}/{}/{}/{}",
-            github_config.owner, github_config.repo, github_config.branch, github_config.path
-        ))))
+        Ok(HandleResponse {
+            response: Some(text_response(format!(
+                "https://raw.githubusercontent.com/{}/{}/{}/{}",
+                github_config.owner, github_config.repo, github_config.branch, github_config.path
+            ))),
+            log_detail: None,
+        })
     }
 }
 
@@ -673,11 +783,30 @@ impl BackupDbCommand {
 #[command(name = "restore-db-backup", desc = "Restore DB from github")]
 pub struct RestoreDBBackupCommand {}
 
-impl RestoreDBBackupCommand {
-    pub async fn handle(
-        db: &Arc<RwLock<Db>>,
-        github_config: &GithubConfig,
-    ) -> Result<Option<InteractionResponseData>> {
+#[async_trait]
+impl BotCommand for RestoreDBBackupCommand {
+    fn name() -> &'static str {
+        Self::NAME
+    }
+    fn permission() -> Permission {
+        Permission::Owner
+    }
+    fn is_ephemeral() -> bool {
+        true
+    }
+    fn is_mutating() -> bool {
+        true
+    }
+
+    async fn handle(
+        _data: CommandData,
+        bot: &Bot,
+        _interaction: &Interaction,
+    ) -> Result<HandleResponse> {
+        let github_config = bot
+            .github_config
+            .as_ref()
+            .ok_or(anyhow!("no github config"))?;
         let bytes = get_bytes_from_github(
             &github_config.owner,
             &github_config.repo,
@@ -686,7 +815,31 @@ impl RestoreDBBackupCommand {
         )
         .await?;
         let restored = Db::from_json(&bytes)?;
-        *db.write().await = restored;
-        Ok(Some(text_response("DB restored from backup")))
+        *bot.db.write().await = restored;
+        Ok(HandleResponse {
+            response: Some(text_response("DB restored from backup")),
+            log_detail: None,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::commands;
+    use std::collections::HashSet;
+
+    /// Guards the registry now that the macro's compile-time name check is gone:
+    /// every command's wire name must be non-empty and unique.
+    #[test]
+    fn command_names_unique_and_nonempty() {
+        let mut seen = HashSet::new();
+        for spec in commands() {
+            assert!(!spec.name.is_empty(), "command has an empty name");
+            assert!(
+                seen.insert(spec.name),
+                "duplicate command name: {}",
+                spec.name
+            );
+        }
     }
 }

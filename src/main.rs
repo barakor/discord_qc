@@ -10,10 +10,7 @@ mod interactions;
 use crate::{
     config_handler::EnvConfig,
     event_handler::{Bot, SHUTDOWN},
-    interactions::command::{
-        AdjustCommand, BackupDbCommand, BalanceCommand, DBStatsCommand, DivideCommand,
-        QueryCommand, RegisterCommand, RenameCommand, RenameOtherCommand, RestoreDBBackupCommand,
-    },
+    interactions::command::{Permission, commands},
 };
 use anyhow::Result;
 use event_handler::runner;
@@ -21,7 +18,6 @@ use std::sync::{Arc, atomic::Ordering};
 use tokio::signal;
 use twilight_gateway::{CloseFrame, ConfigBuilder, Intents, Shard};
 use twilight_http::Client;
-use twilight_interactions::command::CreateCommand;
 use twilight_model::gateway::{
     payload::outgoing::update_presence::UpdatePresencePayload,
     presence::{ActivityType, MinimalActivity, Status},
@@ -89,21 +85,18 @@ async fn main() -> Result<()> {
     let interaction_client = client.interaction(application.id);
 
     // App + admin commands everywhere; owner commands (backup/restore) only in
-    // the home guild — mirrors the Clojure registration.
-    let app_and_admin_commands = [
-        QueryCommand::create_command().into(),
-        RenameCommand::create_command().into(),
-        BalanceCommand::create_command().into(),
-        DivideCommand::create_command().into(),
-        RegisterCommand::create_command().into(),
-        RenameOtherCommand::create_command().into(),
-        AdjustCommand::create_command().into(),
-        DBStatsCommand::create_command().into(),
-    ];
-    let owner_commands = [
-        BackupDbCommand::create_command().into(),
-        RestoreDBBackupCommand::create_command().into(),
-    ];
+    // the home guild — mirrors the Clojure registration. Built from the command
+    // registry, so a new command auto-registers once it's added to `commands()`.
+    let specs = commands();
+    let app_and_admin_commands: Vec<_> = specs
+        .iter()
+        .filter(|spec| spec.permission != Permission::Owner)
+        .map(|spec| (spec.create)())
+        .collect();
+    let owner_commands = specs
+        .iter()
+        .filter(|spec| spec.permission == Permission::Owner)
+        .map(|spec| (spec.create)());
 
     let guild_commands: Vec<_> = app_and_admin_commands
         .iter()
