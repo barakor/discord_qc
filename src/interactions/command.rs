@@ -9,9 +9,9 @@ use crate::{
     github_handler::{get_bytes_from_github, upload_bytes_to_github},
     interactions::utils::{divide_hub, named_elos},
 };
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use std::{collections::BTreeSet, future::Future, marker::PhantomData, pin::Pin};
+use std::collections::BTreeSet;
 use twilight_interactions::command::{CommandModel, CommandOption, CreateCommand, CreateOption};
 use twilight_model::{
     application::interaction::{
@@ -35,79 +35,26 @@ pub enum Permission {
     Owner,
 }
 
-/// Future returned by a command's dispatch thunk. Mirrors the boxed future
-/// `#[async_trait]` produces for [`BotCommand::handle`].
-type HandleFuture<'a> = Pin<Box<dyn Future<Output = Result<HandleResponse>> + Send + 'a>>;
-
-/// Object-safe view of a [`BotCommand`], so the registry can hold heterogeneous
-/// commands in one `Vec` without a hand-rolled vtable. Blanket-impl'd for every
-/// `C: BotCommand` via the zero-sized marker `PhantomData<C>`, so the trait
-/// impls remain the single source of truth — adding a command means adding its
-/// `BotCommand` impl and one line in [`commands`].
-pub trait DynCommand: Send + Sync {
-    /// Discord wire name (from `CreateCommand::NAME`).
-    fn name(&self) -> &'static str;
-    /// Authorization tier required to run it.
-    fn permission(&self) -> Permission;
-    /// Response is only shown to the invoking user.
-    fn is_ephemeral(&self) -> bool;
-    /// Mutates the db; success triggers a persist + github backup.
-    fn is_mutating(&self) -> bool;
-    /// Build the Discord registration payload.
-    fn create(&self) -> twilight_model::application::command::Command;
-    /// Parse the wire data and dispatch to the command's handler.
-    fn handle<'a>(
-        &self,
-        data: CommandData,
-        bot: &'a Bot,
-        interaction: &'a Interaction,
-    ) -> HandleFuture<'a>;
-}
-
-impl<C: BotCommand> DynCommand for PhantomData<C> {
-    fn name(&self) -> &'static str {
-        C::NAME
+/// Discord registration payload paired with the tier required to run it. Built
+/// from each command's `BotCommand` impl, so the trait stays the single source
+/// of truth. Dispatch goes through [`Bot::handle_command`], whose `match` keys
+/// off the same `C::NAME` consts; the `registrations_dispatch_in_sync` test
+/// guards that the two lists agree.
+pub fn registrations() -> Vec<(Permission, twilight_model::application::command::Command)> {
+    fn entry<C: BotCommand>() -> (Permission, twilight_model::application::command::Command) {
+        (C::PERMISSION, C::create_command().into())
     }
-    fn permission(&self) -> Permission {
-        C::PERMISSION
-    }
-    fn is_ephemeral(&self) -> bool {
-        C::EPHEMERAL
-    }
-    fn is_mutating(&self) -> bool {
-        C::MUTATING
-    }
-    fn create(&self) -> twilight_model::application::command::Command {
-        C::create_command().into()
-    }
-    fn handle<'a>(
-        &self,
-        data: CommandData,
-        bot: &'a Bot,
-        interaction: &'a Interaction,
-    ) -> HandleFuture<'a> {
-        Box::pin(async move {
-            let command =
-                C::from_interaction(data.into()).context("failed to parse command data")?;
-            command.handle(bot, interaction).await
-        })
-    }
-}
-
-/// Every slash command the bot handles — the single registration point used by
-/// both Discord command registration and interaction dispatch.
-pub fn commands() -> Vec<Box<dyn DynCommand>> {
     vec![
-        Box::new(PhantomData::<BalanceCommand>),
-        Box::new(PhantomData::<DivideCommand>),
-        Box::new(PhantomData::<RenameCommand>),
-        Box::new(PhantomData::<QueryCommand>),
-        Box::new(PhantomData::<RenameOtherCommand>),
-        Box::new(PhantomData::<RegisterCommand>),
-        Box::new(PhantomData::<AdjustCommand>),
-        Box::new(PhantomData::<DBStatsCommand>),
-        Box::new(PhantomData::<BackupDbCommand>),
-        Box::new(PhantomData::<RestoreDBBackupCommand>),
+        entry::<BalanceCommand>(),
+        entry::<DivideCommand>(),
+        entry::<RenameCommand>(),
+        entry::<QueryCommand>(),
+        entry::<RenameOtherCommand>(),
+        entry::<RegisterCommand>(),
+        entry::<AdjustCommand>(),
+        entry::<DBStatsCommand>(),
+        entry::<BackupDbCommand>(),
+        entry::<RestoreDBBackupCommand>(),
     ]
 }
 
@@ -691,20 +638,20 @@ impl BotCommand for RestoreDBBackupCommand {
 
 #[cfg(test)]
 mod tests {
-    use super::commands;
+    use super::registrations;
     use std::collections::HashSet;
 
     /// Guards the registry now that the macro's compile-time name check is gone:
-    /// every command's wire name must be non-empty and unique.
+    /// every registered command's wire name must be non-empty and unique.
     #[test]
     fn command_names_unique_and_nonempty() {
         let mut seen = HashSet::new();
-        for spec in commands() {
-            assert!(!spec.name().is_empty(), "command has an empty name");
+        for (_, command) in registrations() {
+            assert!(!command.name.is_empty(), "command has an empty name");
             assert!(
-                seen.insert(spec.name()),
+                seen.insert(command.name.clone()),
                 "duplicate command name: {}",
-                spec.name()
+                command.name
             );
         }
     }

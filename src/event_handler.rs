@@ -7,11 +7,16 @@ use crate::{
     events::pubobot::balance_pubobot_queue,
     github_handler::upload_bytes_to_github,
     interactions::{
-        command::{HandleResponse, Permission, commands, render_invocation},
+        command::{
+            AdjustCommand, BackupDbCommand, BalanceCommand, BotCommand, DBStatsCommand,
+            DivideCommand, HandleResponse, Permission, QueryCommand, RegisterCommand, RenameCommand,
+            RenameOtherCommand, RestoreDBBackupCommand, render_invocation,
+        },
         component::handle_component,
     },
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
+use twilight_interactions::command::CreateCommand;
 use std::{
     mem,
     sync::{
@@ -231,27 +236,52 @@ impl Bot {
         }
     }
 
-    /// Handle a command interaction.
+    /// Handle a command interaction. The `match` dispatches the wire name to a
+    /// monomorphized [`Bot::run`] over the concrete `BotCommand` type — no
+    /// runtime command registry. Arms key off each `C::NAME` so they can't drift
+    /// from the `#[command(name = ...)]` attribute.
     pub async fn handle_command(
         &self,
         interaction: Interaction,
         data: CommandData,
     ) -> anyhow::Result<()> {
-        let specs = commands();
-        let Some(spec) = specs.into_iter().find(|spec| spec.name() == data.name) else {
-            interaction_ack(&self.http_client, &interaction, false).await?;
-            let response = InteractionResponseDataBuilder::new()
-                .content(format!("Error: unknown command: {}", data.name))
-                .build();
-            return interaction_response(&self.http_client, &interaction, response).await;
-        };
-        interaction_ack(&self.http_client, &interaction, spec.is_ephemeral()).await?;
+        match data.name.as_str() {
+            BalanceCommand::NAME => self.run::<BalanceCommand>(interaction, data).await,
+            DivideCommand::NAME => self.run::<DivideCommand>(interaction, data).await,
+            RenameCommand::NAME => self.run::<RenameCommand>(interaction, data).await,
+            QueryCommand::NAME => self.run::<QueryCommand>(interaction, data).await,
+            RenameOtherCommand::NAME => self.run::<RenameOtherCommand>(interaction, data).await,
+            RegisterCommand::NAME => self.run::<RegisterCommand>(interaction, data).await,
+            AdjustCommand::NAME => self.run::<AdjustCommand>(interaction, data).await,
+            DBStatsCommand::NAME => self.run::<DBStatsCommand>(interaction, data).await,
+            BackupDbCommand::NAME => self.run::<BackupDbCommand>(interaction, data).await,
+            RestoreDBBackupCommand::NAME => {
+                self.run::<RestoreDBBackupCommand>(interaction, data).await
+            }
+            other => {
+                interaction_ack(&self.http_client, &interaction, false).await?;
+                let response = InteractionResponseDataBuilder::new()
+                    .content(format!("Error: unknown command: {}", other))
+                    .build();
+                interaction_response(&self.http_client, &interaction, response).await
+            }
+        }
+    }
+
+    /// Run one concrete command end to end: ack, authorize, parse, dispatch to
+    /// its [`BotCommand::handle`], then persist + back up + log if it mutates.
+    async fn run<C: BotCommand>(
+        &self,
+        interaction: Interaction,
+        data: CommandData,
+    ) -> anyhow::Result<()> {
+        interaction_ack(&self.http_client, &interaction, C::EPHEMERAL).await?;
 
         let user_id = interaction
             .author_id()
             .ok_or(anyhow::anyhow!("interaction without author"))?;
 
-        if !self.is_authorized(spec.permission(), user_id).await {
+        if !self.is_authorized(C::PERMISSION, user_id).await {
             let response = InteractionResponseDataBuilder::new()
                 .content("You are not authorized to use this command")
                 .build();
@@ -259,16 +289,21 @@ impl Bot {
         }
 
         let invocation = render_invocation(&data);
-        let response = spec.handle(data, self, &interaction).await;
+        let response = async {
+            let command =
+                C::from_interaction(data.into()).context("failed to parse command data")?;
+            command.handle(self, &interaction).await
+        }
+        .await;
 
         match response {
             Ok(HandleResponse {
                 response,
                 log_detail,
             }) => {
-                if spec.is_mutating() {
+                if C::MUTATING {
                     if let Err(e) = self.persist_db().await {
-                        tracing::error!(?e, "failed to persist db after {}", spec.name());
+                        tracing::error!(?e, "failed to persist db after {}", C::NAME);
                     }
                     self.spawn_github_backup();
                     self.log_mutation(&invocation, user_id, log_detail.as_deref());

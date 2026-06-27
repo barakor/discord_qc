@@ -10,7 +10,7 @@ mod interactions;
 use crate::{
     config_handler::EnvConfig,
     event_handler::{Bot, SHUTDOWN},
-    interactions::command::{Permission, commands},
+    interactions::command::{Permission, registrations},
 };
 use anyhow::Result;
 use event_handler::runner;
@@ -87,16 +87,16 @@ async fn main() -> Result<()> {
     // App + admin commands everywhere; owner commands (backup/restore) only in
     // the home guild — mirrors the Clojure registration. Built from the command
     // registry, so a new command auto-registers once it's added to `commands()`.
-    let specs = commands();
+    let specs = registrations();
     let app_and_admin_commands: Vec<_> = specs
         .iter()
-        .filter(|spec| spec.permission() != Permission::Owner)
-        .map(|spec| spec.create())
+        .filter(|(permission, _)| *permission != Permission::Owner)
+        .map(|(_, command)| command.clone())
         .collect();
     let owner_commands = specs
         .iter()
-        .filter(|spec| spec.permission() == Permission::Owner)
-        .map(|spec| spec.create());
+        .filter(|(permission, _)| *permission == Permission::Owner)
+        .map(|(_, command)| command.clone());
 
     let guild_commands: Vec<_> = app_and_admin_commands
         .iter()
