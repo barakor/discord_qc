@@ -23,12 +23,13 @@ use tokio::sync::RwLock;
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_gateway::{Event, EventTypeFlags, Shard, StreamExt as _};
 use twilight_http::Client;
-use twilight_model::application::interaction::{
-    Interaction, InteractionData, application_command::CommandData,
-};
 use twilight_model::id::{
     Id,
     marker::{GuildMarker, RoleMarker},
+};
+use twilight_model::{
+    application::interaction::{Interaction, InteractionData, application_command::CommandData},
+    id::marker::UserMarker,
 };
 use twilight_util::builder::InteractionResponseDataBuilder;
 
@@ -87,7 +88,7 @@ impl Bot {
     /// Post a best-effort log line to the bot-logs channel after a mutating
     /// command succeeds. Off the response path: failures are logged, never
     /// surfaced to the user.
-    fn log_mutation(&self, invocation: &str, user_id: u64, detail: Option<&str>) {
+    fn log_mutation(&self, invocation: &str, user_id: Id<UserMarker>, detail: Option<&str>) {
         let http_client = self.http_client.clone();
         let content = match detail {
             Some(detail) => format!("`{}` run by <@{}> ({})", invocation, user_id, detail),
@@ -196,7 +197,7 @@ impl Bot {
     }
 
     /// Owner passes every check; admins must hold `admin_role` in `home_server`.
-    async fn is_authorized(&self, permission: Permission, user_id: u64) -> bool {
+    async fn is_authorized(&self, permission: Permission, user_id: Id<UserMarker>) -> bool {
         match permission {
             Permission::App => true,
             Permission::Admin => user_id == OWNER_ID || self.has_admin_role(user_id).await,
@@ -206,23 +207,25 @@ impl Bot {
 
     /// Whether `user_id` holds `admin_role` in `home_server`. Reads the cache
     /// first and falls back to an HTTP member lookup if the member isn't cached.
-    async fn has_admin_role(&self, user_id: u64) -> bool {
-        let user = Id::new(user_id);
-
-        if let Some(member) = self.cache.member(self.home_server, user) {
+    async fn has_admin_role(&self, user_id: Id<UserMarker>) -> bool {
+        if let Some(member) = self.cache.member(self.home_server, user_id) {
             return member.roles().contains(&self.admin_role);
         }
 
-        match self.http_client.guild_member(self.home_server, user).await {
+        match self
+            .http_client
+            .guild_member(self.home_server, user_id)
+            .await
+        {
             Ok(response) => match response.model().await {
                 Ok(member) => member.roles.contains(&self.admin_role),
                 Err(e) => {
-                    tracing::error!(?e, user_id, "failed to deserialize member for role check");
+                    tracing::error!(?e, ?user_id, "failed to deserialize member for role check");
                     false
                 }
             },
             Err(e) => {
-                tracing::error!(?e, user_id, "failed to fetch member for role check");
+                tracing::error!(?e, ?user_id, "failed to fetch member for role check");
                 false
             }
         }
@@ -246,7 +249,6 @@ impl Bot {
 
         let user_id = interaction
             .author_id()
-            .map(|id| id.get())
             .ok_or(anyhow::anyhow!("interaction without author"))?;
 
         if !self.is_authorized(spec.permission, user_id).await {

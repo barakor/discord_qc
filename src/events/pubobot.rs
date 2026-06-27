@@ -33,7 +33,7 @@ pub async fn balance_pubobot_queue(bot: &Bot, message: &MessageCreate) -> Result
     if !title.contains("has started") {
         return Ok(());
     }
-    tracing::debug!(title, "got a potential pubobot message");
+    tracing::trace!(title, "got a potential pubobot message");
 
     let Some(guild_id) = message.guild_id else {
         return Ok(());
