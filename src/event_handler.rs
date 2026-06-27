@@ -293,7 +293,7 @@ impl Bot {
 pub async fn runner(mut shard: Shard, bot: Arc<Bot>) {
     // Event loop
     while let Some(item) = shard.next_event(EventTypeFlags::all()).await {
-        tracing::info!(?item, shard = ?shard.id(), "Received Event");
+        tracing::debug!(?item, shard = ?shard.id(), "Received Event");
 
         if let Ok(event) = &item {
             let event = event.clone();
