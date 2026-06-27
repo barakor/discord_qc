@@ -238,20 +238,20 @@ impl Bot {
         data: CommandData,
     ) -> anyhow::Result<()> {
         let specs = commands();
-        let Some(spec) = specs.into_iter().find(|spec| spec.name == data.name) else {
+        let Some(spec) = specs.into_iter().find(|spec| spec.name() == data.name) else {
             interaction_ack(&self.http_client, &interaction, false).await?;
             let response = InteractionResponseDataBuilder::new()
                 .content(format!("Error: unknown command: {}", data.name))
                 .build();
             return interaction_response(&self.http_client, &interaction, response).await;
         };
-        interaction_ack(&self.http_client, &interaction, spec.is_ephemeral).await?;
+        interaction_ack(&self.http_client, &interaction, spec.is_ephemeral()).await?;
 
         let user_id = interaction
             .author_id()
             .ok_or(anyhow::anyhow!("interaction without author"))?;
 
-        if !self.is_authorized(spec.permission, user_id).await {
+        if !self.is_authorized(spec.permission(), user_id).await {
             let response = InteractionResponseDataBuilder::new()
                 .content("You are not authorized to use this command")
                 .build();
@@ -259,16 +259,16 @@ impl Bot {
         }
 
         let invocation = render_invocation(&data);
-        let response = (spec.handle)(data, self, &interaction).await;
+        let response = spec.handle(data, self, &interaction).await;
 
         match response {
             Ok(HandleResponse {
                 response,
                 log_detail,
             }) => {
-                if spec.is_mutating {
+                if spec.is_mutating() {
                     if let Err(e) = self.persist_db().await {
-                        tracing::error!(?e, "failed to persist db after {}", spec.name);
+                        tracing::error!(?e, "failed to persist db after {}", spec.name());
                     }
                     self.spawn_github_backup();
                     self.log_mutation(&invocation, user_id, log_detail.as_deref());

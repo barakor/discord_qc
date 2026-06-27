@@ -90,13 +90,13 @@ async fn main() -> Result<()> {
     let specs = commands();
     let app_and_admin_commands: Vec<_> = specs
         .iter()
-        .filter(|spec| spec.permission != Permission::Owner)
-        .map(|spec| (spec.create)())
+        .filter(|spec| spec.permission() != Permission::Owner)
+        .map(|spec| spec.create())
         .collect();
     let owner_commands = specs
         .iter()
-        .filter(|spec| spec.permission == Permission::Owner)
-        .map(|spec| (spec.create)());
+        .filter(|spec| spec.permission() == Permission::Owner)
+        .map(|spec| spec.create());
 
     let guild_commands: Vec<_> = app_and_admin_commands
         .iter()

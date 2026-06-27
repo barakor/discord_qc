@@ -11,7 +11,7 @@ use crate::{
 };
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
-use std::{collections::BTreeSet, future::Future, pin::Pin};
+use std::{collections::BTreeSet, future::Future, marker::PhantomData, pin::Pin};
 use twilight_interactions::command::{CommandModel, CommandOption, CreateCommand, CreateOption};
 use twilight_model::{
     application::interaction::{
@@ -39,62 +39,75 @@ pub enum Permission {
 /// `#[async_trait]` produces for [`BotCommand::handle`].
 type HandleFuture<'a> = Pin<Box<dyn Future<Output = Result<HandleResponse>> + Send + 'a>>;
 
-/// Runtime descriptor for one slash command, built from its [`BotCommand`]
-/// impl. This replaces the old `commands!` macro + `Command` enum: the trait
-/// impls are now the single source of truth, and [`commands`] lists each one
-/// once. Adding a command means adding its `BotCommand` impl and one line in
-/// [`commands`].
-pub struct CommandSpec {
+/// Object-safe view of a [`BotCommand`], so the registry can hold heterogeneous
+/// commands in one `Vec` without a hand-rolled vtable. Blanket-impl'd for every
+/// `C: BotCommand` via the zero-sized marker `PhantomData<C>`, so the trait
+/// impls remain the single source of truth — adding a command means adding its
+/// `BotCommand` impl and one line in [`commands`].
+pub trait DynCommand: Send + Sync {
     /// Discord wire name (from `CreateCommand::NAME`).
-    pub name: &'static str,
+    fn name(&self) -> &'static str;
     /// Authorization tier required to run it.
-    pub permission: Permission,
+    fn permission(&self) -> Permission;
     /// Response is only shown to the invoking user.
-    pub is_ephemeral: bool,
+    fn is_ephemeral(&self) -> bool;
     /// Mutates the db; success triggers a persist + github backup.
-    pub is_mutating: bool,
+    fn is_mutating(&self) -> bool;
     /// Build the Discord registration payload.
-    pub create: fn() -> twilight_model::application::command::Command,
-    /// Dispatch an invocation to the command's handler.
-    pub handle: for<'a> fn(CommandData, &'a Bot, &'a Interaction) -> HandleFuture<'a>,
+    fn create(&self) -> twilight_model::application::command::Command;
+    /// Parse the wire data and dispatch to the command's handler.
+    fn handle<'a>(
+        &self,
+        data: CommandData,
+        bot: &'a Bot,
+        interaction: &'a Interaction,
+    ) -> HandleFuture<'a>;
 }
 
-impl CommandSpec {
-    /// Derive a spec from a `BotCommand` impl. The wire name comes from
-    /// `CreateCommand::NAME` via `C::name()`, so registration and dispatch can
-    /// never drift from the `#[command(name = ...)]` attribute.
-    fn of<C: BotCommand + CreateCommand>() -> Self {
-        Self {
-            name: C::name(),
-            permission: C::permission(),
-            is_ephemeral: C::is_ephemeral(),
-            is_mutating: C::is_mutating(),
-            create: || C::create_command().into(),
-            handle: |data, bot, interaction| {
-                Box::pin(async move {
-                    let command = C::from_interaction(data.clone().into())
-                        .context("failed to parse command data")?;
-                    command.handle(bot, interaction).await
-                })
-            },
-        }
+impl<C: BotCommand> DynCommand for PhantomData<C> {
+    fn name(&self) -> &'static str {
+        C::NAME
+    }
+    fn permission(&self) -> Permission {
+        C::PERMISSION
+    }
+    fn is_ephemeral(&self) -> bool {
+        C::EPHEMERAL
+    }
+    fn is_mutating(&self) -> bool {
+        C::MUTATING
+    }
+    fn create(&self) -> twilight_model::application::command::Command {
+        C::create_command().into()
+    }
+    fn handle<'a>(
+        &self,
+        data: CommandData,
+        bot: &'a Bot,
+        interaction: &'a Interaction,
+    ) -> HandleFuture<'a> {
+        Box::pin(async move {
+            let command =
+                C::from_interaction(data.into()).context("failed to parse command data")?;
+            command.handle(bot, interaction).await
+        })
     }
 }
 
 /// Every slash command the bot handles — the single registration point used by
 /// both Discord command registration and interaction dispatch.
-pub fn commands() -> Vec<CommandSpec> {
+pub fn commands() -> Vec<Box<dyn DynCommand>> {
     vec![
-        CommandSpec::of::<BalanceCommand>(),
-        CommandSpec::of::<DivideCommand>(),
-        CommandSpec::of::<RenameCommand>(),
-        CommandSpec::of::<QueryCommand>(),
-        CommandSpec::of::<RenameOtherCommand>(),
-        CommandSpec::of::<RegisterCommand>(),
-        CommandSpec::of::<AdjustCommand>(),
-        CommandSpec::of::<DBStatsCommand>(),
-        CommandSpec::of::<BackupDbCommand>(),
-        CommandSpec::of::<RestoreDBBackupCommand>(),
+        Box::new(PhantomData::<BalanceCommand>),
+        Box::new(PhantomData::<DivideCommand>),
+        Box::new(PhantomData::<RenameCommand>),
+        Box::new(PhantomData::<QueryCommand>),
+        Box::new(PhantomData::<RenameOtherCommand>),
+        Box::new(PhantomData::<RegisterCommand>),
+        Box::new(PhantomData::<AdjustCommand>),
+        Box::new(PhantomData::<DBStatsCommand>),
+        Box::new(PhantomData::<BackupDbCommand>),
+        Box::new(PhantomData::<RestoreDBBackupCommand>),
     ]
 }
 
@@ -106,14 +119,13 @@ pub struct HandleResponse {
 }
 
 #[async_trait::async_trait]
-pub trait BotCommand: CreateCommand + CommandModel {
-    // fn name() -> &'static str;
-    fn name() -> &'static str {
-        Self::NAME
-    }
-    fn permission() -> Permission;
-    fn is_ephemeral() -> bool;
-    fn is_mutating() -> bool;
+pub trait BotCommand: CreateCommand + CommandModel + Send + Sync + 'static {
+    /// Authorization tier required to run it.
+    const PERMISSION: Permission;
+    /// Response is only shown to the invoking user.
+    const EPHEMERAL: bool;
+    /// Mutates the db; success triggers a persist + github backup.
+    const MUTATING: bool;
     /// Handle the command, returning an optional response to send back to Discord.
     async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse>;
 }
@@ -200,15 +212,9 @@ pub struct QueryCommand {
 
 #[async_trait]
 impl BotCommand for QueryCommand {
-    fn permission() -> Permission {
-        Permission::Admin
-    }
-    fn is_ephemeral() -> bool {
-        true
-    }
-    fn is_mutating() -> bool {
-        false
-    }
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = false;
 
     async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let db = bot.db.read().await;
@@ -239,15 +245,9 @@ pub struct RenameCommand {
 
 #[async_trait]
 impl BotCommand for RenameCommand {
-    fn permission() -> Permission {
-        Permission::App
-    }
-    fn is_ephemeral() -> bool {
-        true
-    }
-    fn is_mutating() -> bool {
-        true
-    }
+    const PERMISSION: Permission = Permission::App;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
 
     async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse> {
         let user_id = interaction
@@ -285,15 +285,9 @@ pub struct RenameOtherCommand {
 
 #[async_trait]
 impl BotCommand for RenameOtherCommand {
-    fn permission() -> Permission {
-        Permission::Admin
-    }
-    fn is_ephemeral() -> bool {
-        true
-    }
-    fn is_mutating() -> bool {
-        true
-    }
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
 
     async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let discord_id = self.discord_id.get();
@@ -328,15 +322,9 @@ pub struct RegisterCommand {
 
 #[async_trait]
 impl BotCommand for RegisterCommand {
-    fn permission() -> Permission {
-        Permission::Admin
-    }
-    fn is_ephemeral() -> bool {
-        true
-    }
-    fn is_mutating() -> bool {
-        true
-    }
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
 
     async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let discord_id = self.discord_id.get();
@@ -362,15 +350,9 @@ pub struct AdjustCommand {
 
 #[async_trait]
 impl BotCommand for AdjustCommand {
-    fn permission() -> Permission {
-        Permission::Admin
-    }
-    fn is_ephemeral() -> bool {
-        true
-    }
-    fn is_mutating() -> bool {
-        true
-    }
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
 
     async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let discord_id = self.discord_id.get();
@@ -402,15 +384,9 @@ pub struct DBStatsCommand {}
 
 #[async_trait]
 impl BotCommand for DBStatsCommand {
-    fn permission() -> Permission {
-        Permission::Admin
-    }
-    fn is_ephemeral() -> bool {
-        true
-    }
-    fn is_mutating() -> bool {
-        false
-    }
+    const PERMISSION: Permission = Permission::Admin;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = false;
 
     async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let players_registered = bot.db.read().await.elos.len();
@@ -475,15 +451,9 @@ pub struct BalanceCommand {
 
 #[async_trait]
 impl BotCommand for BalanceCommand {
-    fn permission() -> Permission {
-        Permission::App
-    }
-    fn is_ephemeral() -> bool {
-        false
-    }
-    fn is_mutating() -> bool {
-        false
-    }
+    const PERMISSION: Permission = Permission::App;
+    const EPHEMERAL: bool = false;
+    const MUTATING: bool = false;
 
     /// Post the player-selection message: one toggle button per player found
     /// in the caller's voice channel or tagged manually, plus Select All and
@@ -600,15 +570,9 @@ pub struct DivideCommand {
 
 #[async_trait]
 impl BotCommand for DivideCommand {
-    fn permission() -> Permission {
-        Permission::App
-    }
-    fn is_ephemeral() -> bool {
-        false
-    }
-    fn is_mutating() -> bool {
-        false
-    }
+    const PERMISSION: Permission = Permission::App;
+    const EPHEMERAL: bool = false;
+    const MUTATING: bool = false;
 
     async fn handle(self, bot: &Bot, interaction: &Interaction) -> Result<HandleResponse> {
         let guild_id = interaction
@@ -666,15 +630,9 @@ pub struct BackupDbCommand {}
 
 #[async_trait]
 impl BotCommand for BackupDbCommand {
-    fn permission() -> Permission {
-        Permission::Owner
-    }
-    fn is_ephemeral() -> bool {
-        true
-    }
-    fn is_mutating() -> bool {
-        true
-    }
+    const PERMISSION: Permission = Permission::Owner;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
 
     async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let github_config = bot
@@ -706,15 +664,9 @@ pub struct RestoreDBBackupCommand {}
 
 #[async_trait]
 impl BotCommand for RestoreDBBackupCommand {
-    fn permission() -> Permission {
-        Permission::Owner
-    }
-    fn is_ephemeral() -> bool {
-        true
-    }
-    fn is_mutating() -> bool {
-        true
-    }
+    const PERMISSION: Permission = Permission::Owner;
+    const EPHEMERAL: bool = true;
+    const MUTATING: bool = true;
 
     async fn handle(self, bot: &Bot, _interaction: &Interaction) -> Result<HandleResponse> {
         let github_config = bot
@@ -748,11 +700,11 @@ mod tests {
     fn command_names_unique_and_nonempty() {
         let mut seen = HashSet::new();
         for spec in commands() {
-            assert!(!spec.name.is_empty(), "command has an empty name");
+            assert!(!spec.name().is_empty(), "command has an empty name");
             assert!(
-                seen.insert(spec.name),
+                seen.insert(spec.name()),
                 "duplicate command name: {}",
-                spec.name
+                spec.name()
             );
         }
     }
