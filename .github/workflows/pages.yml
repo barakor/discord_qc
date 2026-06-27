@@ -1,46 +1,46 @@
-name: Deploy to GitHub Pages
+name: Deploy webapp to GitHub Pages
 
 on:
   push:
     branches:
       - main
+    paths:
+      - "crates/web/**"
+      - "crates/core/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 jobs:
-  build:
+  build-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install Rust + wasm target
+        uses: dtolnay/rust-toolchain@stable
         with:
-          ref: score-calculator-app
+          targets: wasm32-unknown-unknown
 
-      - name: Checkout db-data branch
-        uses: actions/checkout@v4
+      - name: Cache cargo + build
+        uses: Swatinem/rust-cache@v2
         with:
-          ref: db-data
-          path: db-data-branch
+          workspaces: ". -> target"
 
-      - name: Copy db-data.edn to public/resources
-        run: |
-          mkdir -p ./public/resources
-          cp db-data-branch/db-data.edn ./public/resources/
-
-      - name: Set up JDK
-        uses: actions/setup-java@v2
+      - name: Install trunk
+        uses: taiki-e/install-action@v2
         with:
-          distribution: "temurin"
-          java-version: "21"
+          tool: trunk
 
-      - name: npm install dependencies
-        run: npm install
-
-      - name: Build the project
-        run: npm run release
+      # Project pages live under /<repo>/, so assets must resolve there.
+      - name: Build (release)
+        working-directory: crates/web
+        run: trunk build --release --public-url "/${GITHUB_REPOSITORY#*/}/"
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public
+          publish_dir: ./crates/web/dist

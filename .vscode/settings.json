@@ -1,0 +1,9 @@
+{
+  // rust-analyzer chokes expanding leptos's `view!`/`component` proc-macros
+  // ("Failed to retrieve source text of macro call"). The errors are cosmetic
+  // — `trunk`/`cargo build` are unaffected. Skip expanding them to silence it.
+  "rust-analyzer.procMacro.enable": true,
+  "rust-analyzer.procMacro.ignored": {
+    "leptos_macro": ["server", "component"]
+  }
+}

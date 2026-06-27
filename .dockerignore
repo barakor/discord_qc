@@ -1,0 +1,12 @@
+# Keep the build context small — these never belong in the image.
+target/
+.git/
+.env
+secret.edn
+
+# Clojure leftovers (retire with the cutover).
+.shadow-cljs/
+.cpcache/
+node_modules/
+
+*.md

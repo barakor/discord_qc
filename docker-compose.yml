@@ -1,21 +1,24 @@
-version: "0.1"
 services:
-  quakebot-clj:
+  quakebot:
     build: ./
-    hostname: quakebot-clj
-    container_name: quakebot-clj
-    networks:
-      - quakebot-net
-    ports:
-      - "443"
-      - "80"
+    hostname: quakebot
+    container_name: quakebot
+    # Secrets + GitHub config live in .env (DISCORD_TOKEN, GITHUB_TOKEN,
+    # GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_PATH).
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/data/db.json
     volumes:
-      - depscache:/root/.m2
-      - rocksdb:/tmp/rocksdb
+      # Durable named volume for the single db.json (atomic tmp+rename writes,
+      # GitHub is the off-device backstop).
+      - qcdata:/data
+    # Logs to journald. Pair with host journald in volatile (RAM) mode so they
+    # never touch the SD card; `docker logs` still works. See DEPLOY.md for the
+    # /etc/systemd/journald.conf.d drop-in (Storage=volatile + RuntimeMaxUse).
+    logging:
+      driver: journald
     restart: unless-stopped
 
-networks:
-  quakebot-net: {}
 volumes:
-  depscache: {}
-  rocksdb: {}
+  qcdata: {}
