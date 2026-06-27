@@ -108,14 +108,10 @@ pub async fn save(db: &Db, path: &str) -> Result<()> {
         .filter(|p| !p.as_os_str().is_empty())
     {
         let parent = parent.to_path_buf();
-        // Opening a directory and fsyncing it is blocking; keep it off the
-        // async worker. Best-effort — durability hardening, not correctness.
-        let _ = tokio::task::spawn_blocking(move || {
-            if let Ok(dir) = std::fs::File::open(&parent) {
-                let _ = dir.sync_all();
-            }
-        })
-        .await;
+        match fs::File::open(&parent).await?.sync_all().await {
+            Ok(_) => {}
+            Err(e) => tracing::error!(?e, ?parent, "failed to fsync parent dir after db save"),
+        }
     }
     Ok(())
 }
