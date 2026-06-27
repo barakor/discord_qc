@@ -28,11 +28,11 @@ pub fn player_elo_embed(elo: &PlayerElo) -> InteractionResponseData {
         field("CTF", elo.ctf),
         field("TDM", elo.tdm),
         field("Killing", elo.killing),
-        field("Ranked Duel", elo.ranked_duel),
-        field("Instagib", elo.instagib),
+        // field("Ranked Duel", elo.ranked_duel),
+        // field("Instagib", elo.instagib),
         field("Slipgate", elo.slipgate),
-        field("Duel", elo.duel),
-        field("FFA", elo.ffa),
+        // field("Duel", elo.duel),
+        // field("FFA", elo.ffa),
         field("TDM 2v2", elo.tdm_2v2),
     ];
     let mut embed = EmbedBuilder::new()

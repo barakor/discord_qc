@@ -161,14 +161,12 @@ fn render_value(value: &CommandOptionValue) -> String {
 /// Game modes exposed as slash command choices (mirrors the Clojure choice list).
 #[derive(CommandOption, CreateOption, Debug, Clone, Copy)]
 pub enum GameModeOption {
-    #[option(name = "Sacrifice", value = "sacrifice")]
-    Sacrifice,
+    #[option(name = "Sacrifice Tournament", value = "sacrifice-tournament")]
+    SacrificeTournament,
     #[option(name = "Objective", value = "objective")]
     Objective,
     #[option(name = "Killing", value = "killing")]
     Killing,
-    #[option(name = "Sacrifice Tournament", value = "sacrifice-tournament")]
-    SacrificeTournament,
     #[option(name = "Slipgate", value = "slipgate")]
     Slipgate,
     #[option(name = "CTF", value = "ctf")]
@@ -182,10 +180,9 @@ pub enum GameModeOption {
 impl From<GameModeOption> for GameMode {
     fn from(option: GameModeOption) -> Self {
         match option {
-            GameModeOption::Sacrifice => GameMode::Sacrifice,
+            GameModeOption::SacrificeTournament => GameMode::SacrificeTournament,
             GameModeOption::Objective => GameMode::Objective,
             GameModeOption::Killing => GameMode::Killing,
-            GameModeOption::SacrificeTournament => GameMode::SacrificeTournament,
             GameModeOption::Slipgate => GameMode::Slipgate,
             GameModeOption::Ctf => GameMode::Ctf,
             GameModeOption::Tdm => GameMode::Tdm,
