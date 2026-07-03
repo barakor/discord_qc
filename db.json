@@ -2325,6 +2325,21 @@
       "objective": 1.665961503982544,
       "tdm_2v2": 1.5504017
     },
+    "335626542719827970": {
+      "quake_name": "realrockybalboa",
+      "killing": 4.0,
+      "ranked_duel": 4.0,
+      "tdm": 4.0,
+      "sacrifice_tournament": 4.0,
+      "instagib": 4.0,
+      "slipgate": 4.0,
+      "duel": 4.0,
+      "ctf": 4.0,
+      "ffa": 4.0,
+      "sacrifice": 4.0,
+      "objective": 4.0,
+      "tdm_2v2": 4.0
+    },
     "337687224751751168": {
       "quake_name": "Forsakns",
       "killing": 3.862885614236196,
