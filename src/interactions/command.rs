@@ -310,7 +310,12 @@ impl BotCommand for AdjustCommand {
         let mut db = bot.db.write().await;
         match db.elos.get_mut(&discord_id) {
             Some(elo) => {
-                let log_detail = Some(format!("{} -> {}", elo.score(mode), self.score));
+                let log_detail = Some(format!(
+                    "{}: {} -> {}",
+                    elo.quake_name,
+                    elo.score(mode),
+                    self.score
+                ));
                 elo.set_score(mode, self.score);
                 Ok(HandleResponse {
                     response: Some(player_elo_embed(elo)),
