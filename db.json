@@ -1905,6 +1905,21 @@
       "objective": 6.92435868581136,
       "tdm_2v2": 0.0
     },
+    "296041690429390858": {
+      "quake_name": "Sethxy",
+      "killing": 6.0,
+      "ranked_duel": 6.0,
+      "tdm": 6.0,
+      "sacrifice_tournament": 6.0,
+      "instagib": 6.0,
+      "slipgate": 6.0,
+      "duel": 6.0,
+      "ctf": 6.0,
+      "ffa": 6.0,
+      "sacrifice": 6.0,
+      "objective": 6.0,
+      "tdm_2v2": 6.0
+    },
     "297214623130714114": {
       "quake_name": "c x t",
       "killing": 3.815308690071106,
