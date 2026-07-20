@@ -9,14 +9,13 @@ use crate::{
     interactions::{
         command::{
             AdjustCommand, BackupDbCommand, BalanceCommand, BotCommand, DBStatsCommand,
-            DivideCommand, HandleResponse, Permission, QueryCommand, RegisterCommand, RenameCommand,
-            RenameOtherCommand, RestoreDBBackupCommand, render_invocation,
+            DivideCommand, HandleResponse, Permission, QueryCommand, RegisterCommand,
+            RenameCommand, RenameOtherCommand, RestoreDBBackupCommand, render_invocation,
         },
         component::handle_component,
     },
 };
 use anyhow::{Context, Result};
-use twilight_interactions::command::CreateCommand;
 use std::{
     mem,
     sync::{
@@ -28,6 +27,7 @@ use tokio::sync::RwLock;
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_gateway::{Event, EventTypeFlags, Shard, StreamExt as _};
 use twilight_http::Client;
+use twilight_interactions::command::CreateCommand;
 use twilight_model::id::{
     Id,
     marker::{GuildMarker, RoleMarker},
@@ -97,7 +97,7 @@ impl Bot {
         let http_client = self.http_client.clone();
         let content = match detail {
             Some(detail) => format!("`{}` run by <@{}> ({})", invocation, user_id, detail),
-            None => format!("`{}` run by <@{}>", invocation, user_id),
+            None => format!("> {invocation}\nrun by <@{user_id}>"),
         };
         tokio::spawn(async move {
             let result = async {
