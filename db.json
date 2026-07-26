@@ -1125,6 +1125,21 @@
       "objective": 4.05798602104187,
       "tdm_2v2": 0.0
     },
+    "206146702464385024": {
+      "quake_name": "gabrievis",
+      "killing": 3.0,
+      "ranked_duel": 3.0,
+      "tdm": 3.0,
+      "sacrifice_tournament": 3.0,
+      "instagib": 3.0,
+      "slipgate": 3.0,
+      "duel": 3.0,
+      "ctf": 3.0,
+      "ffa": 3.0,
+      "sacrifice": 3.0,
+      "objective": 3.0,
+      "tdm_2v2": 3.0
+    },
     "206184759427072000": {
       "quake_name": "foxcake",
       "killing": 3.166883170604706,
