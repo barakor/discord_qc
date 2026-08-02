@@ -3600,6 +3600,21 @@
       "objective": 10.65030829111735,
       "tdm_2v2": 1.1650256
     },
+    "603360250149470242": {
+      "quake_name": "Davidw2371",
+      "killing": 3.5,
+      "ranked_duel": 3.5,
+      "tdm": 3.5,
+      "sacrifice_tournament": 3.5,
+      "instagib": 3.5,
+      "slipgate": 3.5,
+      "duel": 3.5,
+      "ctf": 3.5,
+      "ffa": 3.5,
+      "sacrifice": 3.5,
+      "objective": 3.5,
+      "tdm_2v2": 3.5
+    },
     "618901966818377753": {
       "quake_name": "velonex",
       "killing": 5.0,
