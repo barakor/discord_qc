@@ -360,6 +360,21 @@
       "objective": 6.4824568430582685,
       "tdm_2v2": 1.5907435
     },
+    "143581579170545665": {
+      "quake_name": "BooskiBro",
+      "killing": 5.0,
+      "ranked_duel": 5.0,
+      "tdm": 5.0,
+      "sacrifice_tournament": 5.0,
+      "instagib": 5.0,
+      "slipgate": 5.0,
+      "duel": 5.0,
+      "ctf": 5.0,
+      "ffa": 5.0,
+      "sacrifice": 5.0,
+      "objective": 5.0,
+      "tdm_2v2": 5.0
+    },
     "145279562455056384": {
       "quake_name": "zenith bane",
       "killing": 3.3080636262893677,
