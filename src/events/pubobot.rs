@@ -9,17 +9,19 @@ use twilight_model::gateway::payload::incoming::MessageCreate;
 /// Pubobot queue names → game modes (same table as the Clojure version).
 fn queue_game_mode(queue: &str) -> Option<GameMode> {
     match queue {
-        q if q.starts_with("sac") => Some(GameMode::Sacrifice),
         "sac" => Some(GameMode::SacrificeTournament),
         "sac-tourney" => Some(GameMode::SacrificeTournament),
-        q if q.starts_with("ctf") => Some(GameMode::Ctf),
-        "ctf-tourney" => Some(GameMode::Ctf),
+        q if q.starts_with("sac") => Some(GameMode::SacrificeTournament),
         "ctf" => Some(GameMode::Ctf),
-        "tdm" => Some(GameMode::Tdm),
+        "ctf-tourney" => Some(GameMode::Ctf),
+        q if q.starts_with("ctf") => Some(GameMode::Ctf),
+
+        "2v2" => Some(GameMode::Tdm2v2),
         "slipgate" => Some(GameMode::Slipgate),
         "ca2v2" | "ca4v4" => Some(GameMode::Killing),
+
+        "tdm" => Some(GameMode::Tdm),
         "ffa" => Some(GameMode::Ffa),
-        "2v2" => Some(GameMode::Tdm2v2),
         _ => None,
     }
 }
