@@ -19,8 +19,8 @@ RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
 # sccache: caches compiled crate objects across builds. Wrapper for rustc; its
 # cache lives in /sccache, mounted as a cache so it survives between builds.
 # cargo-binstall pulls the latest prebuilt sccache binary (no compile).
-RUN curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
-    && cargo binstall -y sccache
+RUN curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+RUN cargo binstall -y sccache
 
 ENV RUSTC_WRAPPER=sccache
 ENV SCCACHE_DIR=/sccache
@@ -30,28 +30,37 @@ ENV SCCACHE_DIR=/sccache
 COPY Cargo.toml Cargo.lock ./
 COPY crates/core/Cargo.toml crates/core/
 COPY crates/web/Cargo.toml crates/web/
+
+RUN mkdir -p src crates/core/src crates/web/src
+RUN echo "fn main() {}" > src/main.rs
+RUN : > crates/core/src/lib.rs
+RUN echo "fn main() {}" > crates/web/src/main.rs
+
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-target,target=/app/target \
     --mount=type=cache,id=sccache,target=/sccache \
-    mkdir -p src crates/core/src crates/web/src \
-    && echo "fn main() {}" > src/main.rs \
-    && : > crates/core/src/lib.rs \
-    && echo "fn main() {}" > crates/web/src/main.rs \
-    && cargo build --release \
-    && rm -rf src crates/core/src
-# web stub kept on purpose: qc-web is WASM-only and never built here (excluded
+    cargo build --release
+
+# Drop the stubs so the real sources can be copied over a clean tree. The web
+# stub is kept on purpose: qc-web is WASM-only and never built here (excluded
 # from default-members), but the workspace won't load without a qc-web target.
+RUN rm -rf src crates/core/src
 
 COPY src ./src
 COPY crates/core/src ./crates/core/src
-# target/ is a cache mount (absent after the RUN), so copy the binary out to a
-# real path for the final stage to pick up.
+# COPY preserves source mtimes, which can predate the stub build cached in
+# target/; touch forces cargo to see the real sources as newer.
+RUN find src crates/core/src -name '*.rs' -exec touch {} +
+
+# Build and extract in one step: target/ is a cache mount, so it's gone once
+# the RUN ends — the binary has to be copied to a real path here for the final
+# stage to pick up.
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-target,target=/app/target \
     --mount=type=cache,id=sccache,target=/sccache \
-    find src crates/core/src -name '*.rs' -exec touch {} + \
-    && cargo build --release \
-    && cp target/release/discord_qc /app/discord_qc
+    cargo build --release
+
+RUN cp target/release/discord_qc /app/discord_qc
 
 FROM debian:trixie-slim
 
