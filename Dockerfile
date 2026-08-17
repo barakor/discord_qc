@@ -58,9 +58,8 @@ RUN find src crates/core/src -name '*.rs' -exec touch {} +
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-target,target=/app/target \
     --mount=type=cache,id=sccache,target=/sccache \
-    cargo build --release
-
-RUN cp target/release/discord_qc /app/discord_qc
+    cargo build --release \
+    && cp target/release/discord_qc /app/discord_qc
 
 FROM debian:trixie-slim
 
