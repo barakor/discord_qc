@@ -2,7 +2,7 @@
 # Multi-stage build. Build on the Pi (or via buildx) — produces a native
 # aarch64 binary for the RPi 4. Dependencies are cached in their own layer so
 # code-only changes don't trigger a full recompile (Pi builds are slow).
-FROM rust:1-trixie AS builder
+FROM rust:1.97-trixie
 
 WORKDIR /app
 

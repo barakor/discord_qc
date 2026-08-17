@@ -5,5 +5,16 @@
   "rust-analyzer.procMacro.enable": true,
   "rust-analyzer.procMacro.ignored": {
     "leptos_macro": ["server", "component"]
-  }
+  },
+  "cSpell.words": [
+    "binstall",
+    "botuser",
+    "octocrab",
+    "reqwest",
+    "rustc",
+    "RUSTC",
+    "sccache",
+    "SCCACHE",
+    "trixie"
+  ]
 }
