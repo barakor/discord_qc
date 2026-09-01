@@ -900,6 +900,21 @@
       "objective": 4.5,
       "tdm_2v2": 4.5
     },
+    "180041957861621760": {
+      "quake_name": "Khan",
+      "killing": 3.0,
+      "ranked_duel": 3.0,
+      "tdm": 3.0,
+      "sacrifice_tournament": 3.0,
+      "instagib": 3.0,
+      "slipgate": 3.0,
+      "duel": 3.0,
+      "ctf": 3.0,
+      "ffa": 3.0,
+      "sacrifice": 3.0,
+      "objective": 3.0,
+      "tdm_2v2": 3.0
+    },
     "181146292934672384": {
       "quake_name": "killing",
       "killing": 4.095365226268768,
