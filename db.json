@@ -4469,6 +4469,21 @@
       "sacrifice": 4.5,
       "objective": 4.5,
       "tdm_2v2": 4.5
+    },
+    "1536161557547974736": {
+      "quake_name": "gwuh",
+      "killing": 3.5,
+      "ranked_duel": 3.5,
+      "tdm": 3.5,
+      "sacrifice_tournament": 3.5,
+      "instagib": 3.5,
+      "slipgate": 3.5,
+      "duel": 3.5,
+      "ctf": 3.5,
+      "ffa": 3.5,
+      "sacrifice": 3.5,
+      "objective": 3.5,
+      "tdm_2v2": 3.5
     }
   }
 }
