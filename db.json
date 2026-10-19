@@ -1515,6 +1515,21 @@
       "objective": 6.757485548655192,
       "tdm_2v2": 1.7363583
     },
+    "242409784811192320": {
+      "quake_name": "Vordik",
+      "killing": 5.5,
+      "ranked_duel": 5.5,
+      "tdm": 5.5,
+      "sacrifice_tournament": 5.5,
+      "instagib": 5.5,
+      "slipgate": 5.5,
+      "duel": 5.5,
+      "ctf": 5.5,
+      "ffa": 5.5,
+      "sacrifice": 5.5,
+      "objective": 5.5,
+      "tdm_2v2": 5.5
+    },
     "243125030374866944": {
       "quake_name": "thekobs",
       "killing": 3.485816280047098,
