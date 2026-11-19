@@ -4365,6 +4365,21 @@
       "objective": 5.0,
       "tdm_2v2": 5.0
     },
+    "1158802124327616638": {
+      "quake_name": "bomb2001",
+      "killing": 4.5,
+      "ranked_duel": 4.5,
+      "tdm": 4.5,
+      "sacrifice_tournament": 4.5,
+      "instagib": 4.5,
+      "slipgate": 4.5,
+      "duel": 4.5,
+      "ctf": 4.5,
+      "ffa": 4.5,
+      "sacrifice": 4.5,
+      "objective": 4.5,
+      "tdm_2v2": 4.5
+    },
     "1178514562572628000": {
       "quake_name": "lastbreathOFair",
       "killing": 2.234713554382324,
